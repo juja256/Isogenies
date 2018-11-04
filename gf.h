@@ -11,25 +11,30 @@ typedef unsigned char u8;
 typedef u64 BaseEl[BASE_FIELD_LEN];
 typedef u64 BigInt[2*BASE_FIELD_LEN];
 
-
-
-typedef struct {
-    BaseEl a[FIELD_EXTENSION];
-} GFElement;
+typedef BaseEl GFElement[FIELD_EXTENSION];
 
 class GaloisField {
-    BigInt characteristic;
     int bitSize;
+    int wordSize;
+    BigInt characteristic;
     int extension;
-
 public:
+   
+
+    GaloisField();
+    GaloisField(const BigInt characteristic, int ext, int bitSize);
+    BigInt* GetChar();
+    int GetWordSize();
+    int GetBitSize();
+    int GetExtension();
+
     static GFElement Zero;
     static GFElement Unity;
 
     void GFAdd(const GFElement, const GFElement, GFElement);
     void GFSqrt(const GFElement a, GFElement r); // via Tonelli-Shanks
     void GFInitFromString(GFElement a, const char* str);
-    void GFDump(const GFElement a);
+    std::string GFDump(const GFElement a);
     void GFAdd(const GFElement a, const GFElement b, GFElement c);
     void GFSub(const GFElement a, const GFElement b, GFElement c);
     void GFNeg(const GFElement a, GFElement c);

@@ -17,7 +17,7 @@ public:
 
     IsogenyEngine(int l2, int l3, int f);
     ~IsogenyEngine();
-    EllipticCurve GetBaseCurve();
+    EllipticCurve* GetBaseCurve();
 
     /* via Velu formulas, small isogenies of degree 3 and 4 */
     void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, EcPointProj* image);
