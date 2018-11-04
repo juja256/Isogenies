@@ -1,150 +1,58 @@
 #ifndef EC_H
 #define EC_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define NORMAL_POINT 1
 #define INFINITY_POINT 0
 
+#include <string>
+#include "gf.h"
 /* 
-    In SIDH we use prime p = 2^372 * 3^239 - 1 and Field F_p^2 for 124bit quantum security leve
+    In SIDH we use prime p = 2^372 * 3^239 - 1 and Field F_p^2 for 124bit quantum security level
     p = 3 (mod 4)
+    Resulting supersingular elliptic curve is E/F_{p^2} : y^2 = x^3 + x; #E = (2^237 * 3^239)^2
+    
+    For all x in F_p^2 x = a + i*b, where i is square root of QNR in F_p 
 */
-#define BASE_FIELD_LEN (751/64 + 1 + 1) // 13 64bit words
 
-typedef unsigned long long u64;
-typedef unsigned u32;
-typedef unsigned char u8;
-
-typedef u64 GFElement[BASE_FIELD_LEN];
-
-
-/* For all x in F_p^2 x = a + i*b, where i is square root of QNR in F_p */
-typedef struct _GFex2Element {
-    GFElement a;
-    GFElement b;
-} GFex2Element;
-
-typedef u64 BigInt[BASE_FIELD_LEN]; 
-typedef u64 VeryBigInt[2*BASE_FIELD_LEN]; // up to 1280 bits
-
-typedef struct _EcPoint {
-    GFex2Element x;
-    GFex2Element y;
+typedef struct {
+    GFElement X;
+    GFElement Y;
 } EcPoint;
 
-typedef struct _EcPointProj {
-    GFex2Element X;
-    GFex2Element Y;
-    GFex2Element Z;
+typedef struct {
+    GFElement X;
+    GFElement Y;
+    GFElement Z;
 } EcPointProj;
 
-typedef int BOOL;
-#define TRUE 1
-#define FALSE 0
-
-typedef struct _Ec Ec;
-
-typedef void TGFAddFunc(const Ec*, const GFElement, const GFElement, GFElement);
-typedef void TGFMulFunc(const Ec*, const GFElement, const GFElement, GFElement);
-typedef void TGFSubFunc(const Ec*, const GFElement, const GFElement, GFElement);
-typedef void TGFSqrFunc(const Ec*, const GFElement, GFElement);
-
-typedef void TEcAdd(Ec*, const EcPointProj*, const EcPointProj*, EcPointProj*);
-typedef void TEcDouble(Ec*, const EcPointProj*, EcPointProj*);
-
 #define PRNG_STATE_LEN 256 
-typedef struct {
+
+class PseudoRandomGenerator {
     unsigned char state[PRNG_STATE_LEN];
-} PRNG;
+    
+    virtual void Run(); 
+public:
+    PseudoRandomGenerator(unsigned char* seed, int len);
+    virtual void GenerateSequence(int bit_len, unsigned char* dest);
+};
 
-void PRNGInit(PRNG* generator, unsigned char* seed, int len);
-void PRNGRun(PRNG* generator); 
-void PRNGGenerateSequence(PRNG* generator, int bit_len, unsigned char* dest);
+#define WEIERSTRASS 0
+#define MONTHOMERRY 1
+#define EDWARDS 2
 
-/* Elliptic curve in Edwards:
+class EllipticCurveException {
+    int code;
+public:
+    EllipticCurveException(int c);
+    std::string What();
+};
+
+/* 
+Elliptic curve in Edwards:
     x^2 + y^2 = 1 + d*x^2*y^2
    or in Weierstrass form:
     y^2 = x^3 + a*x + b 
-*/
-
-#define ED_192 0xE192
-#define ED_224 0xE224
-#define ED_256 0xE256
-#define ED_384 0xE384
-#define ED_521 0xE521
-#define ED_NOT_STANDARD 0xE000
-
-#define FIPS_192 0xF192
-#define FIPS_224 0xF224
-#define FIPS_256 0xF256
-#define FIPS_384 0xF384
-#define FIPS_521 0xF521
-#define FIPS_NOT_STANDARD 0xF000
-
-#define WINDOW_SIZE 4
-
-typedef struct _Ec {
-    GFElement d, a, b;
-    BOOL isEdwards;
-
-    u64 bitLen;
-    u64 wordLen;
-
-    BigInt n;
-    u64 cofactor;
-    EcPoint BasePoint;
-
-    BigInt p;
-    u64 curve_id;
     
-    TGFMulFunc* GFMul;
-    TGFSqrFunc* GFSqr;
-
-    TEcAdd* EcAdd;
-    TEcDouble* EcDouble;
-
-    PRNG prng;
-
-    EcPointProj* T; // for precomputations
-} Ec;
-
-typedef Ec EcEd;
-typedef Ec EcW;
-
-
-int  EcEdInit(EcEd* ecc, u64 bitLen, const BigInt p, const EcPoint* bp, const BigInt n, const GFElement d);
-int  EcWInit(EcW* ecc, u64 bitLen, const BigInt p, const EcPoint* bp, const BigInt n, const GFElement a, const GFElement b);
-
-int  EcInitStandardCurve(Ec* ecc, u64 bitLen, BOOL isEdwards);
-
-void EcGenerateBasePoint(Ec* ecc, EcPoint* bp);
-
-int  EcCheckPointInMainSubGroup(Ec* ecc, const EcPoint* P);
-int  EcCheckPointOnCurve(Ec* ecc, const EcPoint* P);
-
-void EcDump(Ec* ecc, char* buf);
-
-void EcDestroy(Ec* ecc);
-
-/* Arithmetic on Elliptic Curves */
-int  EcPointCmp(Ec* ecc, const EcPoint* A, const EcPoint* B);
-void EcCopy(Ec* ecc, EcPoint* dest, const EcPoint* src);
-void EcCopyProj(Ec* ecc, EcPointProj* dest, const EcPointProj* src);
-
-void EcConvertAffineToProjective(Ec* ecc, const EcPoint* P, EcPointProj* Q);
-void EcConvertProjectiveToAffine(Ec* ecc, const EcPointProj* P, EcPoint* Q);
-
-void EcAdd(Ec* ecc, const EcPoint* A, const EcPoint* B, EcPoint* C);
-void EcDouble(Ec* ecc, const EcPoint* A, EcPoint* B);
-
-void EcAddProj(Ec* ecc, const EcPointProj* A, const EcPointProj* B, EcPointProj* C);
-void EcDoubleProj(Ec* ecc, const EcPointProj* A, EcPointProj* B);
-
-
-/* 
 Scalar Multiplications(all in the projective coordinates):
     - AddAndDouble naive:
     Result: Q = kP
@@ -177,25 +85,66 @@ Scalar Multiplications(all in the projective coordinates):
     - wNAF(not tested) 
 */
 
-void EcScalarMulWindowedPrecomputation(Ec* ecc, const EcPoint* A, EcPointProj** T, int windowSize);
-void EcScalarMulWindowed(Ec* ecc, const EcPointProj* T, int windowSize, const BigInt k, EcPointProj* B);
+typedef void TScalarMul(const EcPointProj*, const BigInt, EcPointProj*);
 
+class EllipticCurve {
+    GaloisField* GF;
+    u8 form;
+    bool isSupersingular;
 
-void EcScalarMulwNAFPrecomputation(Ec* ecc, const EcPoint* A, EcPointProj** T, int windowSize);
-void EcScalarMulwNAF(Ec* ecc, const EcPointProj* T, int windowSize, const BigInt k, EcPointProj* B);
+    GFElement d, a, b; // d for Edwards form; a,b for Weierstrass form
+    BigInt n; // cardinality
+    EcPoint BasePoint;
+    bool isBasePointPresent;
 
-void EcScalarMulNaive(Ec* ecc, const EcPointProj* A, const BigInt k, EcPointProj* B);
+    PseudoRandomGenerator* prng;
+    EcPointProj* T; // for precomputations
 
-void EcScalarMulMontgomery(Ec* ecc, const EcPointProj* A, const BigInt k, EcPointProj* B);
+    TScalarMul* scalarMulEngine;
 
-/* Fast windowed ScalarMul */
-void EcScalarMulByBasePoint(Ec* ecc, const BigInt k, EcPoint* B);
+public:
+    static EcPoint UnityPoint;
+    static EcPointProj UnityPointProj; 
 
-/* Not so fast, but constant time Montgomery ladder */
-void EcScalarMul(Ec* ecc, const EcPoint * A, const BigInt k, EcPoint * B);
+    EllipticCurve(PseudoRandomGenerator*);
+    ~EllipticCurve();
+    void InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const BigInt a, const BigInt b, const EcPoint* BP = NULL);
+    void InitAsEdwards(GaloisField* GF, const BigInt cardinality, const BigInt d, const EcPoint* BP = NULL);
 
-#ifdef __cplusplus
-}
-#endif
+    bool CheckSupersingularity();
+    void GenerateBasePoint();
+    void ComputeJInvariant(GFElement* J);
+    void GetBasePoint(EcPoint* BP);
+
+    bool IsPointOnCurve(const EcPoint* P);
+    bool HasOrder(const EcPoint* P, const BigInt order); 
+    
+    int PointCmp(const EcPoint* A, const EcPoint* B);
+    int PointCmp(const EcPointProj* A, const EcPointProj* B);
+
+    void PointCopy(EcPoint* dst, const EcPoint* src);
+    void PointCopy(EcPointProj* dst, const EcPointProj* B);
+
+    void ToProjective(const EcPoint* src, EcPointProj* dst);
+    void ToAffine(const EcPointProj* src, EcPoint* dst);
+
+    void Add(const EcPoint* A, const EcPoint* B, EcPoint* C);
+    void Add(const EcPointProj* A, const EcPointProj* B, EcPointProj* C);
+
+    void Dbl(const EcPoint* A, EcPoint* C);
+    void Dbl(const EcPointProj* A, EcPointProj* C);
+
+    void SetNaiveScalarMulEngine(); // DoubleAndAdd algorithm
+    void SetMontgomeryScalarMulEngine(); // Suitable for cryptologic usage
+    void SetScalarMulWindowedEngine(const EcPoint* A, int windowSize); // Very fast and still suitable for cryptology in Edwards form
+    
+    void ScalarMul(const BigInt k, EcPoint* Q);
+    void ScalarMul(const BigInt k, EcPointProj* Q);
+
+    void ScalarMul(const EcPoint* P, const BigInt k, EcPoint* Q);
+    void ScalarMul(const EcPoint* P, const BigInt k, EcPointProj* Q);
+    
+};
+
 
 #endif /* EC_H */
