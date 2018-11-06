@@ -4,6 +4,10 @@
 #define BASE_FIELD_LEN (751/64 + 1 + 1) // 13 64bit words
 #define FIELD_EXTENSION 2
 
+#define ARCH 64
+
+#include <string>
+
 typedef unsigned long long u64;
 typedef unsigned u32;
 typedef unsigned char u8;
@@ -12,6 +16,13 @@ typedef u64 BaseEl[BASE_FIELD_LEN];
 typedef u64 BigInt[2*BASE_FIELD_LEN];
 
 typedef BaseEl GFElement[FIELD_EXTENSION];
+
+class GaloisFieldException {
+    int code;
+public:
+    GaloisFieldException(int c);
+    std::string What();
+};
 
 class GaloisField {
     int bitSize;
@@ -23,7 +34,7 @@ public:
 
     GaloisField();
     GaloisField(const BigInt characteristic, int ext, int bitSize);
-    BigInt* GetChar();
+    const BigInt* GetChar();
     int GetWordSize();
     int GetBitSize();
     int GetExtension();
@@ -31,22 +42,38 @@ public:
     static GFElement Zero;
     static GFElement Unity;
 
-    void GFAdd(const GFElement, const GFElement, GFElement);
-    void GFSqrt(const GFElement a, GFElement r); // via Tonelli-Shanks
+    void GFInitFromString(BaseEl a, const char* str);
     void GFInitFromString(GFElement a, const char* str);
     std::string GFDump(const GFElement a);
+
+    void GFCopy(GFElement a, const GFElement b);
     void GFAdd(const GFElement a, const GFElement b, GFElement c);
     void GFSub(const GFElement a, const GFElement b, GFElement c);
     void GFNeg(const GFElement a, GFElement c);
-    void GFPow(const GFElement a, const BigInt n, GFElement b);
+    void GFPow(const GFElement a, const BigInt n, int nlen, GFElement b);
     void GFInv(const GFElement a, GFElement b);
-    int  GFCmp(const GFElement a, const GFElement b);
     void GFMul(const GFElement a, const GFElement b, GFElement c);
     void GFSqr(const GFElement a, GFElement c);
+    void GFSqrt(const GFElement a, GFElement r); // via Tonelli-Shanks
     void GFMulBy2Power(const GFElement a, int pp, GFElement b);
+    void GFMulByBase(const GFElement a, const BaseEl e, GFElement c);
+
+    /* base field operations */
+    void GFBaseCopy(BaseEl a, const BaseEl b);
+    void GFBaseSqr(const BaseEl a, BaseEl c);
+    void GFBaseMul(const BaseEl a, const BaseEl b, BaseEl c);
+    void GFBaseAdd(const BaseEl a, const BaseEl b, BaseEl c);
+    void GFBaseSub(const BaseEl a, const BaseEl b, BaseEl c);
+    void GFBasePow(const BaseEl a, const BigInt n, int nlen, BaseEl b);
+    void GFBasePow(const BaseEl a, const BigInt n, BaseEl b);
+    void GFBaseInv(const BaseEl a, BaseEl b);
+    void GFBaseNeg(const BaseEl a, BaseEl c);
+    void GFBaseSqrt(const BaseEl a, BaseEl b);
+    int GFBaseCmp(const BaseEl a, const BaseEl b);
+    
 };
 
-/* Common Arithmetics */
+/* Common Arithmetics 
 
 void shr(u64 n, const u64* a, u64* res, u64 bits);
 #define div2(n, a) shr((n), (a), (a), 1)
@@ -74,7 +101,7 @@ int cmp(u64 n, const u64* a, const u64* b);
 void add_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
 void mul_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
 void exp_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
-void inv_mod(u64 n, const BigInt a, const BigInt m, BigInt res);
+void inv_mod(u64 n, const BigInt a, const BigInt m, BigInt res); */
 
 
 #endif /* GF_H */
