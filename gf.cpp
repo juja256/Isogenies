@@ -376,6 +376,8 @@ GaloisField::GaloisField(const BigInt characteristic, int ext, int bitSize) {
         throw GaloisFieldException(UNSUPPORTED_PARAM);
     }
     this->extension = ext;
+    sqr(wordSize, characteristic, this->size);
+    shr(2*wordSize, this->size, this->halfSize, 1);
 }
 
 const BigInt* GaloisField::GetChar() {
@@ -396,6 +398,7 @@ int GaloisField::GetExtension() {
 
 GFElement GaloisField::Zero = {{0}, {0}};
 GFElement GaloisField::Unity = {{1}, {0}};
+GFElement GaloisField::I = {{0}, {1}};
 
 void GaloisField::GFBaseAdd(const BaseEl a, const BaseEl b, BaseEl c) {
     add_mod(wordSize, a, b, characteristic, c);
@@ -479,9 +482,39 @@ void GaloisField::GFBaseSqrt(const BaseEl a, BaseEl r) {
     }
 }
 
-// Algorithm 9 in https://eprint.iacr.org/2012/685.pdf
-void GFSqrt(const GFElement a, GFElement r) {
-    
+bool GaloisField::IsQuadraticResidue(const GFElement a) {
+    GFElement b;
+    GFPow(a, halfSize, 2*wordSize, b);
+    return GFBaseCmp(b[0], Unity[0]) == 0;
+}
+
+// Algorithm 9 in https://eprint.iacr.org/2012/685.pdf for p = 3 (mod 4)
+bool GaloisField::GFSqrt(const GFElement a, GFElement r) {
+    BigInt p, p2;
+    GFElement a1, x0, a0, alpha, b;
+    BigInt c;
+    GFBaseCopy(c, characteristic);
+    c[0] &= (u64)(-1) << 1;
+
+    shr(wordSize, characteristic, p, 2);
+    shr(wordSize, characteristic, p2, 1);
+
+    GFPow(a, p, wordSize, a1);
+    GFMul(a1, a, x0);
+    GFMul(x0, a1, alpha);
+    GFPow(alpha, characteristic, wordSize, a0);
+    GFMul(a0, alpha, a0);
+    if (GFBaseCmp(a0[0], c) == 0) {
+        return false;
+    }
+    if (GFBaseCmp(alpha[0], c) == 0) { 
+        GFMul(x0, I, r);
+    } else {
+        GFAdd(alpha, Unity, b);
+        GFPow(b, p2, wordSize, b);
+        GFMul(x0, b, r);
+    }
+    return true;
 } 
 
 void GaloisField::GFInitFromString(BaseEl a, const char* str) {
@@ -574,6 +607,10 @@ void GaloisField::GFPow(const GFElement a, const BigInt n, int nlen, GFElement b
             GFMul(b, tmp, b);
         GFSqr(tmp, tmp);
     }
+}
+
+void GaloisField::GFPow(const GFElement a, const BigInt n, GFElement b) {
+    GFPow(a, n, 2*wordSize, b);
 }
 
 void GaloisField::GFBaseInv(const BaseEl a, BaseEl b) {

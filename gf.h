@@ -29,6 +29,9 @@ class GaloisField {
     int wordSize;
     BigInt characteristic;
     int extension;
+    
+    BigInt size;
+    BigInt halfSize;
 public:
    
 
@@ -41,20 +44,23 @@ public:
 
     static GFElement Zero;
     static GFElement Unity;
+    static GFElement I;
 
     void GFInitFromString(BaseEl a, const char* str);
     void GFInitFromString(GFElement a, const char* str);
     std::string GFDump(const GFElement a);
 
+    bool IsQuadraticResidue(const GFElement a);
     void GFCopy(GFElement a, const GFElement b);
     void GFAdd(const GFElement a, const GFElement b, GFElement c);
     void GFSub(const GFElement a, const GFElement b, GFElement c);
     void GFNeg(const GFElement a, GFElement c);
     void GFPow(const GFElement a, const BigInt n, int nlen, GFElement b);
+    void GFPow(const GFElement a, const BigInt n, GFElement b);
     void GFInv(const GFElement a, GFElement b);
     void GFMul(const GFElement a, const GFElement b, GFElement c);
     void GFSqr(const GFElement a, GFElement c);
-    void GFSqrt(const GFElement a, GFElement r); // via Tonelli-Shanks
+    bool GFSqrt(const GFElement a, GFElement r); 
     void GFMulBy2Power(const GFElement a, int pp, GFElement b);
     void GFMulByBase(const GFElement a, const BaseEl e, GFElement c);
 
