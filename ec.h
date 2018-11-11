@@ -27,13 +27,15 @@ typedef struct {
 
 #define PRNG_STATE_LEN 256 
 
+/* Dummy realization of PRNG, new stronger implementations must be derived from this */
 class PseudoRandomGenerator {
+protected:
     unsigned char state[PRNG_STATE_LEN];
-    
     virtual void Run(); 
+    virtual void DeriveRandomFromState(char* ptr, int byteCnt);
 public:
     PseudoRandomGenerator(unsigned char* seed, int len);
-    virtual void GenerateSequence(int bit_len, unsigned char* dest);
+    virtual void GenerateSequence(int bit_len, char* dest);
 };
 
 #define WEIERSTRASS 0
@@ -103,21 +105,23 @@ class EllipticCurve {
     TScalarMul* scalarMulEngine;
 
 public:
-    static EcPoint UnityPoint;
-    static EcPointProj UnityPointProj; 
+    EcPoint UnityPoint;
+    EcPointProj UnityPointProj; 
+    EcPoint BasePoint;
 
+    EllipticCurve();
     EllipticCurve(PseudoRandomGenerator*);
     ~EllipticCurve();
-    void InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const BigInt a, const BigInt b, const EcPoint* BP = NULL);
-    void InitAsEdwards(GaloisField* GF, const BigInt cardinality, const BigInt d, const EcPoint* BP = NULL);
+    void InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const GFElement a, const GFElement b, const EcPoint* BP = NULL);
+    void InitAsEdwards(GaloisField* GF, const BigInt cardinality, const GFElement d, const EcPoint* BP = NULL);
+    void SetPseudoRandomProvider(PseudoRandomGenerator* p);
 
     bool CheckSupersingularity();
     void GenerateBasePoint();
-    void ComputeJInvariant(GFElement* J);
-    void GetBasePoint(EcPoint* BP);
+    void GetJInvariant(GFElement J);
 
     bool IsPointOnCurve(const EcPoint* P);
-    bool HasOrder(const EcPoint* P, const BigInt order); 
+    bool CheckPointTorsion(const EcPoint* P, const BigInt order); 
     
     int PointCmp(const EcPoint* A, const EcPoint* B);
     int PointCmp(const EcPointProj* A, const EcPointProj* B);

@@ -5,6 +5,11 @@
 #define FIELD_EXTENSION 2
 
 #define ARCH 64
+#define BYTES_IN_WORD (ARCH/8)
+
+#define UNSUPPORTED_PARAM -1
+#define INVALID_DATA -2
+
 
 #include <string>
 
@@ -42,9 +47,9 @@ public:
     int GetBitSize();
     int GetExtension();
 
-    static GFElement Zero;
-    static GFElement Unity;
-    static GFElement I;
+    static const GFElement Zero;
+    static const GFElement Unity;
+    static const GFElement I;
 
     void GFInitFromString(BaseEl a, const char* str);
     void GFInitFromString(GFElement a, const char* str);
@@ -52,6 +57,7 @@ public:
 
     bool IsQuadraticResidue(const GFElement a);
     void GFCopy(GFElement a, const GFElement b);
+    bool GFCmp(const GFElement a, const GFElement b);
     void GFAdd(const GFElement a, const GFElement b, GFElement c);
     void GFSub(const GFElement a, const GFElement b, GFElement c);
     void GFNeg(const GFElement a, GFElement c);
@@ -79,12 +85,10 @@ public:
     
 };
 
-/* Common Arithmetics 
+/* Common Arithmetics */
 
 void shr(u64 n, const u64* a, u64* res, u64 bits);
-#define div2(n, a) shr((n), (a), (a), 1)
 void shl(u64 n, const u64* a, u64* res, u64 bits);
-#define mul2(n, a) shl((n), (a), (a), 1)
 u64 get_bit(const u64* a, u64 num);
 void copy(u64* a, const u64* b, int len);
 u64 add(u64 n, const u64* a, const u64* b, u64* c);
@@ -104,10 +108,10 @@ void divide(u64 n, const u64* a, const u64* b, u64* quotient, u64* reminder);
 int cmp(u64 n, const u64* a, const u64* b);
 
 
-void add_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
-void mul_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
-void exp_mod(u64 n, const BigInt a, const BigInt b, const BigInt m, BigInt res);
-void inv_mod(u64 n, const BigInt a, const BigInt m, BigInt res); */
+void add_mod(u64 n, const u64* a, const u64* b, const u64* m, u64* res);
+void mul_mod(u64 n, const u64* a, const u64* b, const u64* m, u64* res);
+void exp_mod(u64 n, const u64* a, const u64* b, const u64* m, u64* res);
+//void inv_mod(u64 n, const u64* a, const u64* m, u64* res); 
 
 
 #endif /* GF_H */

@@ -354,14 +354,10 @@ void divide(u64 n, const u64* a, const u64* b, u64* quotient, u64* reminder) {
 GaloisFieldException::GaloisFieldException(int c): code(c) {}
 std::string GaloisFieldException::What() {
     std::stringstream ss;
-    ss << "Error #";
+    ss << "GaloisFieldException #";
     ss << code;
     return ss.str();
 }
-
-
-#define UNSUPPORTED_PARAM -1
-#define INVALID_DATA -2
 
 GaloisField::GaloisField() {
 
@@ -370,7 +366,7 @@ GaloisField::GaloisField() {
 GaloisField::GaloisField(const BigInt characteristic, int ext, int bitSize) {
     this->bitSize = bitSize;
     this->wordSize = (bitSize % ARCH == 0) ? bitSize / ARCH : bitSize / ARCH + 1;
-    copy( this->characteristic, characteristic, wordSize);
+    copy( this->characteristic, characteristic, 2*wordSize);
 
     if (ext > 2) {
         throw GaloisFieldException(UNSUPPORTED_PARAM);
@@ -396,9 +392,9 @@ int GaloisField::GetExtension() {
     return extension;
 }
 
-GFElement GaloisField::Zero = {{0}, {0}};
-GFElement GaloisField::Unity = {{1}, {0}};
-GFElement GaloisField::I = {{0}, {1}};
+const GFElement GaloisField::Zero = {{0}, {0}};
+const GFElement GaloisField::Unity = {{1}, {0}};
+const GFElement GaloisField::I = {{0}, {1}};
 
 void GaloisField::GFBaseAdd(const BaseEl a, const BaseEl b, BaseEl c) {
     add_mod(wordSize, a, b, characteristic, c);
@@ -685,4 +681,8 @@ void GaloisField::GFMulBy2Power(const GFElement a, int pp, GFElement b) {
         shl(wordSize, a[i], d, pp);
         divide(wordSize, d, characteristic, NULL, b[i]);
     }
+}
+
+bool GaloisField::GFCmp(const GFElement a, const GFElement b) {
+    return (GFBaseCmp(a[0], b[0]) == 0) && (GFBaseCmp(a[1], b[1]) == 0);
 }
