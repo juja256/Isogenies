@@ -32,15 +32,18 @@ class PseudoRandomGenerator {
 protected:
     unsigned char state[PRNG_STATE_LEN];
     virtual void Run(); 
-    virtual void DeriveRandomFromState(char* ptr, int byteCnt);
+    virtual void DeriveRandomFromState(unsigned char* ptr, int byteCnt);
 public:
     PseudoRandomGenerator(unsigned char* seed, int len);
-    virtual void GenerateSequence(int bit_len, char* dest);
+    virtual void GenerateSequence(int bit_len, unsigned char* dest);
+    virtual void GenerateBaseEl(int bit_len, BaseEl a);
 };
 
 #define WEIERSTRASS 0
 #define MONTHOMERRY 1
 #define EDWARDS 2
+
+#define NOT_SUPPORTED -1
 
 class EllipticCurveException {
     int code;
@@ -87,7 +90,7 @@ Scalar Multiplications(all in the projective coordinates):
     - wNAF(not tested) 
 */
 
-typedef void TScalarMul(const EcPointProj*, const BigInt, EcPointProj*);
+typedef void TScalarMul(const EcPointProj*, const BigInt, EcPointProj*, int);
 
 class EllipticCurve {
     GaloisField* GF;
@@ -104,6 +107,9 @@ class EllipticCurve {
 
     TScalarMul* scalarMulEngine;
 
+    void AcquireEdwardsForm();
+    void ScalarMulNaive(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
+    void ScalarMulMontgomery(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
 public:
     EcPoint UnityPoint;
     EcPointProj UnityPointProj; 
@@ -123,8 +129,8 @@ public:
     bool IsPointOnCurve(const EcPoint* P);
     bool CheckPointTorsion(const EcPoint* P, const BigInt order); 
     
-    int PointCmp(const EcPoint* A, const EcPoint* B);
-    int PointCmp(const EcPointProj* A, const EcPointProj* B);
+    bool PointEqual(const EcPoint* A, const EcPoint* B);
+    bool PointEqual(const EcPointProj* A, const EcPointProj* B);
 
     void PointCopy(EcPoint* dst, const EcPoint* src);
     void PointCopy(EcPointProj* dst, const EcPointProj* B);
@@ -140,13 +146,10 @@ public:
 
     void SetNaiveScalarMulEngine(); // DoubleAndAdd algorithm
     void SetMontgomeryScalarMulEngine(); // Suitable for cryptologic usage
-    void SetScalarMulWindowedEngine(const EcPoint* A, int windowSize); // Very fast and still suitable for cryptology in Edwards form
-    
-    void ScalarMul(const BigInt k, EcPoint* Q);
-    void ScalarMul(const BigInt k, EcPointProj* Q);
+    //void SetScalarMulWindowedEngine(const EcPoint* A, int windowSize); // Very fast and still suitable for cryptology in Edwards form
 
-    void ScalarMul(const EcPoint* P, const BigInt k, EcPoint* Q);
-    void ScalarMul(const EcPoint* P, const BigInt k, EcPointProj* Q);
+    void ScalarMul(const EcPoint* P, const BigInt k, EcPoint* Q, int bitLen=0);
+    void ScalarMul(const EcPointProj* P, const BigInt k, EcPointProj* Q, int bitLen=0);
     
 };
 

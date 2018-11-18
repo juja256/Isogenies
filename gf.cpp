@@ -396,11 +396,11 @@ const GFElement GaloisField::Zero = {{0}, {0}};
 const GFElement GaloisField::Unity = {{1}, {0}};
 const GFElement GaloisField::I = {{0}, {1}};
 
-void GaloisField::GFBaseAdd(const BaseEl a, const BaseEl b, BaseEl c) {
+void GaloisField::BaseAdd(const BaseEl a, const BaseEl b, BaseEl c) {
     add_mod(wordSize, a, b, characteristic, c);
 }
 
-void GaloisField::GFBaseSub(const BaseEl a, const BaseEl b, BaseEl c) {
+void GaloisField::BaseSub(const BaseEl a, const BaseEl b, BaseEl c) {
     int borrow  = sub(wordSize, a, b, c);
     if (bitSize % ARCH != 0) {
         borrow = c[wordSize - 1] & ((u64)1 << (wordSize % ARCH) );
@@ -410,29 +410,29 @@ void GaloisField::GFBaseSub(const BaseEl a, const BaseEl b, BaseEl c) {
     }
 }
 
-void GaloisField::GFAdd(const GFElement a, const GFElement b, GFElement c) {
+void GaloisField::Add(const GFElement a, const GFElement b, GFElement c) {
     for (int i=0; i<extension; i++) {
-        GFBaseAdd(a[i], b[i], c[i]);
+        BaseAdd(a[i], b[i], c[i]);
     }
 }
 
-int GaloisField::GFBaseCmp(const BaseEl a, const BaseEl b) {
+int GaloisField::BaseCmp(const BaseEl a, const BaseEl b) {
     return cmp(wordSize, a, b);
 }
 
 #define div2(n, a) shr((n), (a), (a), 1)
 
 // Tonelli-Shanks
-void GaloisField::GFBaseSqrt(const BaseEl a, BaseEl r) {
+void GaloisField::BaseSqrt(const BaseEl a, BaseEl r) {
     // p = Q*2^s
     BaseEl Q, pp, z, tmp, c, t, R, b;
-    GFBaseCopy(z, Unity[0]);
+    BaseCopy(z, Unity[0]);
     z[0]++;
-    GFBaseCopy(Q, characteristic);
+    BaseCopy(Q, characteristic);
     u64 M, S = 1;
     div2(wordSize, Q);
 
-    GFBaseCopy(pp, Q);
+    BaseCopy(pp, Q);
     //p-1 = 2^s*Q
 
     while ((Q[0] & 1) == 0) {
@@ -441,79 +441,79 @@ void GaloisField::GFBaseSqrt(const BaseEl a, BaseEl r) {
     }
     //finding z - non quadratic residue
     while(1) {
-        GFBasePow(z, pp, tmp); 
-        if (GFBaseCmp(tmp, Unity[0]))
+        BasePow(z, pp, tmp); 
+        if (BaseCmp(tmp, Unity[0]))
             break;
         else 
-            GFBaseAdd(z, Unity[0], z);
+            BaseAdd(z, Unity[0], z);
     }
     
     M = S;
-    GFBasePow(z, Q, c);
-    GFBasePow(a, Q, t);
-    GFBaseAdd(Q, Unity[0], tmp);
+    BasePow(z, Q, c);
+    BasePow(a, Q, t);
+    BaseAdd(Q, Unity[0], tmp);
     div2(wordSize, tmp);
     u64 i=1;
-    GFBasePow(a, tmp, R); // tmp = (Q+1)/2
+    BasePow(a, tmp, R); // tmp = (Q+1)/2
 
     while (1) {
-        if (!GFBaseCmp(t, Unity[0])) {
-            GFBaseCopy(r, R);
+        if (!BaseCmp(t, Unity[0])) {
+            BaseCopy(r, R);
             break;
         } 
-        GFBaseCopy(tmp, t); //copying value of t, we'll need it later
+        BaseCopy(tmp, t); //copying value of t, we'll need it later
         for (i=1; i<M; i++) {
-            GFBaseSqr(t, t);
-            if (!GFBaseCmp(t, Unity[0]))
+            BaseSqr(t, t);
+            if (!BaseCmp(t, Unity[0]))
                 break;
         }
-        GFBaseCopy(b, c);
+        BaseCopy(b, c);
         for (u64 j=0; j<M-i-1; j++) {
-            GFBaseSqr(b, b);
+            BaseSqr(b, b);
         }
         M = i;
-        GFBaseSqr(b, c);
-        GFBaseMul(tmp, c, t); //original value of t multiplied by c^2 
-        GFBaseMul(R, b, R);
+        BaseSqr(b, c);
+        BaseMul(tmp, c, t); //original value of t multiplied by c^2 
+        BaseMul(R, b, R);
     }
 }
 
 bool GaloisField::IsQuadraticResidue(const GFElement a) {
     GFElement b;
-    GFPow(a, halfSize, 2*wordSize, b);
-    return GFBaseCmp(b[0], Unity[0]) == 0;
+    Pow(a, halfSize, 2*wordSize, b);
+    return BaseCmp(b[0], Unity[0]) == 0;
 }
 
 // Algorithm 9 in https://eprint.iacr.org/2012/685.pdf for p = 3 (mod 4)
-bool GaloisField::GFSqrt(const GFElement a, GFElement r) {
+bool GaloisField::Sqrt(const GFElement a, GFElement r) {
     BigInt p, p2;
     GFElement a1, x0, a0, alpha, b;
     BigInt c;
-    GFBaseCopy(c, characteristic);
+    BaseCopy(c, characteristic);
     c[0] &= (u64)(-1) << 1;
 
     shr(wordSize, characteristic, p, 2);
     shr(wordSize, characteristic, p2, 1);
 
-    GFPow(a, p, wordSize, a1);
-    GFMul(a1, a, x0);
-    GFMul(x0, a1, alpha);
-    GFPow(alpha, characteristic, wordSize, a0);
-    GFMul(a0, alpha, a0);
-    if (GFBaseCmp(a0[0], c) == 0) {
+    Pow(a, p, wordSize, a1);
+    Mul(a1, a, x0);
+    Mul(x0, a1, alpha);
+    Pow(alpha, characteristic, wordSize, a0);
+    Mul(a0, alpha, a0);
+    if (BaseCmp(a0[0], c) == 0) {
         return false;
     }
-    if (GFBaseCmp(alpha[0], c) == 0) { 
-        GFMul(x0, I, r);
+    if (BaseCmp(alpha[0], c) == 0) { 
+        Mul(x0, I, r);
     } else {
-        GFAdd(alpha, Unity, b);
-        GFPow(b, p2, wordSize, b);
-        GFMul(x0, b, r);
+        Add(alpha, Unity, b);
+        Pow(b, p2, wordSize, b);
+        Mul(x0, b, r);
     }
     return true;
 } 
 
-void GaloisField::GFInitFromString(BaseEl a, const char* str) {
+void GaloisField::InitFromString(BaseEl a, const char* str) {
     u64 s_len = strlen(str);
     u64 tmp;
 
@@ -533,21 +533,21 @@ void GaloisField::GFInitFromString(BaseEl a, const char* str) {
     }
 }
 
-void GaloisField::GFInitFromString(GFElement a, const char* str) {
+void GaloisField::InitFromString(GFElement a, const char* str) {
     std::string s = str;
     size_t pos = s.find_first_of(";,+");
     
     if (pos != std::string::npos) {
         std::string s1 = s.substr(0, pos);
         std::string s2 = s.substr(pos+1);
-        GFInitFromString(a[0], s1.c_str());
-        GFInitFromString(a[1], s2.c_str());
+        InitFromString(a[0], s1.c_str());
+        InitFromString(a[1], s2.c_str());
     } else {
         throw GaloisFieldException(INVALID_DATA);
     }    
 }
 
-std::string GaloisField::GFDump(const GFElement a) {
+std::string GaloisField::Dump(const GFElement a) {
     std::stringstream out;
     auto oldFlags = out.flags();
     for (int i=wordSize-1; i>=0; i--) {
@@ -563,126 +563,126 @@ std::string GaloisField::GFDump(const GFElement a) {
     return out.str();
 }
 
-void GaloisField::GFSub(const GFElement a, const GFElement b, GFElement c) {
+void GaloisField::Sub(const GFElement a, const GFElement b, GFElement c) {
     for (int i=0; i<extension; i++) {
-        GFBaseSub(a[i], b[i], c[i]);
+        BaseSub(a[i], b[i], c[i]);
     }
 }
 
-void GaloisField::GFBaseNeg(const BaseEl a, BaseEl c) {
+void GaloisField::BaseNeg(const BaseEl a, BaseEl c) {
     sub(wordSize, characteristic, a, c);
 }
 
-void GaloisField::GFNeg(const GFElement a, GFElement c) {
+void GaloisField::Neg(const GFElement a, GFElement c) {
     for (int i=0; i<extension; i++) {
-        GFBaseNeg(a[i], c[i]);
+        BaseNeg(a[i], c[i]);
     }
 }
 
-void GaloisField::GFBasePow(const BaseEl a, const BigInt n, int nlen, BaseEl b) {
+void GaloisField::BasePow(const BaseEl a, const BigInt n, int nlen, BaseEl b) {
     BaseEl tmp;
-    GFBaseCopy(tmp, a);
-    GFBaseCopy(b, Unity[0]);
+    BaseCopy(tmp, a);
+    BaseCopy(b, Unity[0]);
     for (u64 i=0; i<nlen; i++) {
         if (get_bit(n, i))
-            GFBaseMul(b, tmp, b);
-        GFBaseSqr(tmp, tmp);
+            BaseMul(b, tmp, b);
+        BaseSqr(tmp, tmp);
     }
 }
 
-void GaloisField::GFBasePow(const BaseEl a, const BigInt n, BaseEl b) {
-    GFBasePow(a, n, wordSize, b);
+void GaloisField::BasePow(const BaseEl a, const BigInt n, BaseEl b) {
+    BasePow(a, n, wordSize, b);
 }
 
-void GaloisField::GFPow(const GFElement a, const BigInt n, int nlen, GFElement b) {
+void GaloisField::Pow(const GFElement a, const BigInt n, int nlen, GFElement b) {
     GFElement tmp;
-    GFCopy(tmp, a);
-    GFCopy(b, Unity);
+    Copy(tmp, a);
+    Copy(b, Unity);
     for (u64 i=0; i<nlen; i++) {
         if (get_bit(n, i))
-            GFMul(b, tmp, b);
-        GFSqr(tmp, tmp);
+            Mul(b, tmp, b);
+        Sqr(tmp, tmp);
     }
 }
 
-void GaloisField::GFPow(const GFElement a, const BigInt n, GFElement b) {
-    GFPow(a, n, 2*wordSize, b);
+void GaloisField::Pow(const GFElement a, const BigInt n, GFElement b) {
+    Pow(a, n, 2*wordSize, b);
 }
 
-void GaloisField::GFBaseInv(const BaseEl a, BaseEl b) {
+void GaloisField::BaseInv(const BaseEl a, BaseEl b) {
     // via extended Euclidean
     inv_mod(wordSize, a, characteristic, b);
 }
 
-void GaloisField::GFInv(const GFElement a, GFElement b) {
+void GaloisField::Inv(const GFElement a, GFElement b) {
     // Thanks to YaSV for reminding basic complex analysis: 
     // 1/(x+yi) = (x-yi)/(x^2 + y^2)
     BaseEl c, d;
-    GFBaseSqr(a[0], c);
-    GFBaseSqr(a[1], d);
-    GFBaseAdd(c, d, c);
-    GFBaseInv(c, d);
-    GFCopy(b, a);
-    GFBaseNeg(b[1], b[1]);
-    GFMulByBase(b, d, b);
+    BaseSqr(a[0], c);
+    BaseSqr(a[1], d);
+    BaseAdd(c, d, c);
+    BaseInv(c, d);
+    Copy(b, a);
+    BaseNeg(b[1], b[1]);
+    MulByBase(b, d, b);
 }
 
-void GaloisField::GFBaseMul(const BaseEl a, const BaseEl b, BaseEl c) {
+void GaloisField::BaseMul(const BaseEl a, const BaseEl b, BaseEl c) {
     mul_mod(wordSize, a, b, characteristic, c);
 }
 
-void GaloisField::GFMul(const GFElement a, const GFElement b, GFElement c) {
+void GaloisField::Mul(const GFElement a, const GFElement b, GFElement c) {
     // (x1 + y1*i) * (x2 + y2*i) = x1*x2 - y1*y2 + (y1*x2 + y2*x1)*i
     BaseEl d1, d2;
-    GFBaseMul(a[0], b[0], d1);
-    GFBaseMul(a[0], b[0], d2);
+    BaseMul(a[0], b[0], d1);
+    BaseMul(a[0], b[0], d2);
 
-    GFBaseSub(d1, d2, c[0]);
+    BaseSub(d1, d2, c[0]);
 
-    GFBaseMul(a[1], b[0], d1);
-    GFBaseMul(a[0], b[1], d2);
+    BaseMul(a[1], b[0], d1);
+    BaseMul(a[0], b[1], d2);
 
-    GFBaseAdd(d1, d2, c[1]);
+    BaseAdd(d1, d2, c[1]);
 }
 
-void GaloisField::GFBaseSqr(const BaseEl a, BaseEl c) {
+void GaloisField::BaseSqr(const BaseEl a, BaseEl c) {
     sqr_mod(wordSize, a, characteristic, c);
 }
 
-void GaloisField::GFSqr(const GFElement a, GFElement c) {
+void GaloisField::Sqr(const GFElement a, GFElement c) {
     BaseEl d, b;
-    GFBaseSqr(a[0], d);
-    GFBaseSqr(a[1], b);
-    GFBaseSub(d, b, c[0]);
-    GFBaseMul(a[0], a[1], c[1]);
-    GFBaseAdd(c[1], c[1], c[1]);
+    BaseSqr(a[0], d);
+    BaseSqr(a[1], b);
+    BaseSub(d, b, c[0]);
+    BaseMul(a[0], a[1], c[1]);
+    BaseAdd(c[1], c[1], c[1]);
 }
 
-void GaloisField::GFBaseCopy(BaseEl a, const BaseEl b) {
+void GaloisField::BaseCopy(BaseEl a, const BaseEl b) {
     copy(a, b, wordSize);
 }
 
-void GaloisField::GFCopy(GFElement a, const GFElement b) {
+void GaloisField::Copy(GFElement a, const GFElement b) {
     for (int i=0; i<extension; i++) {
-        GFBaseCopy(a[i], b[i]);
+        BaseCopy(a[i], b[i]);
     }
 }
 
-void GaloisField::GFMulByBase(const GFElement a, const BaseEl e, GFElement c) {
+void GaloisField::MulByBase(const GFElement a, const BaseEl e, GFElement c) {
     for (int i=0; i<extension; i++) {
-        GFBaseMul(a[i], e, c[i]);
+        BaseMul(a[i], e, c[i]);
     }
 }
 
-void GaloisField::GFMulBy2Power(const GFElement a, int pp, GFElement b) {
+void GaloisField::MulBy2Power(const GFElement a, int pp, GFElement b) {
     for (int i=0; i<extension; i++) {
         BigInt d;
-        GFBaseCopy(d, Zero[0]);
+        BaseCopy(d, Zero[0]);
         shl(wordSize, a[i], d, pp);
         divide(wordSize, d, characteristic, NULL, b[i]);
     }
 }
 
-bool GaloisField::GFCmp(const GFElement a, const GFElement b) {
-    return (GFBaseCmp(a[0], b[0]) == 0) && (GFBaseCmp(a[1], b[1]) == 0);
+bool GaloisField::Equal(const GFElement a, const GFElement b) {
+    return (BaseCmp(a[0], b[0]) == 0) && (BaseCmp(a[1], b[1]) == 0);
 }

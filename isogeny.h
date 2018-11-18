@@ -20,18 +20,22 @@ public:
     EllipticCurve* GetBaseCurve();
 
     /* via Velu formulas, small isogenies of degree 3 and 4 */
-    void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, EcPointProj* image);
-    void Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, EcPointProj* image);
+    void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);
+    void Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);
+    
+    void Eval3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage);
+    void Eval4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage);
 
     /*  
         Natural isogeny from E to E/<P>, P belongs to E_A or E_B
         via smooth degree isogeny algorithm(perhaps multiplication strategy), isogenies of degree 3^l, 4^l, phi(E) = F
         Need to check optimal strategies(I suppose they might be vulnarable to timing attacks)
     */
-    void Compute3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, int l, EllipticCurve* F, EcPointProj* image);
-    void Compute4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, int l, EllipticCurve* F, EcPointProj* image);
+    void Compute3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, int l);
+    void Compute4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, int l);
+
+    void Eval3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage, int l);
+    void Eval4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage, int l);
 };
-
-
 
 #endif
