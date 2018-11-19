@@ -93,12 +93,11 @@ Scalar Multiplications(all in the projective coordinates):
 typedef void TScalarMul(const EcPointProj*, const BigInt, EcPointProj*, int);
 
 class EllipticCurve {
-    GaloisField* GF;
+    
     u8 form;
     bool isSupersingular;
 
     GFElement d, a, b; // d for Edwards form; a,b for Weierstrass form
-    BigInt n; // cardinality
     EcPoint BasePoint;
     bool isBasePointPresent;
 
@@ -111,6 +110,8 @@ class EllipticCurve {
     void ScalarMulNaive(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
     void ScalarMulMontgomery(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
 public:
+    BigInt n;
+    GaloisField* GF;
     EcPoint UnityPoint;
     EcPointProj UnityPointProj; 
     EcPoint BasePoint;
