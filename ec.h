@@ -149,6 +149,7 @@ public:
     void SetMontgomeryScalarMulEngine(); // Suitable for cryptologic usage
     //void SetScalarMulWindowedEngine(const EcPoint* A, int windowSize); // Very fast and still suitable for cryptology in Edwards form
 
+    void ApplyDistortionMap(const EcPoint* P, EcPoint* Q);
     void ScalarMul(const EcPoint* P, const BigInt k, EcPoint* Q, int bitLen=0);
     void ScalarMul(const EcPointProj* P, const BigInt k, EcPointProj* Q, int bitLen=0);
     

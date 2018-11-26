@@ -333,3 +333,9 @@ void EllipticCurve::ScalarMulMontgomery(const EcPointProj* P, const BigInt k, Ec
         }
     }
 }
+
+// ksi(x,y) = (xi, y^{-1})
+void EllipticCurve::ApplyDistortionMap(const EcPoint* P, EcPoint* Q) {
+    GF->Mul(P->X, GF->I, Q->X);
+    GF->Inv(P->X, Q->Y);
+}

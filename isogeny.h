@@ -3,7 +3,7 @@
 
 #include "ec.h"
 
-class IsogenyEngine {
+class SIDHEngine {
     /* 
         Parameters identifying group structure of E over field GF(p^2), p = (2^l2 * 3^l3 * f)-1 prime; 
         E - supersingular |E| = (2^l2 * 3^l3 * f)^2 
@@ -11,13 +11,18 @@ class IsogenyEngine {
         Bob does mutatis mutandis.
     */
     int l2, l3, f; 
-    EllipticCurve* BaseCurve; // think usual form 'd be y^2 = x^3 + x, need to check Edwards equiv.
+    
+    void Generate2LTorsionPoint(EcPoint* P2L);
+    void Generate3LTorsionPoint(EcPoint* P3L);
 
+    void GenerateParams();
 public:
-    IsogenyEngine();
-    IsogenyEngine(int l2, int l3, int f);
-    ~IsogenyEngine();
-    EllipticCurve* GetBaseCurve();
+    EllipticCurve* BaseCurve; // think usual form 'd be y^2 = x^3 + x, need to check Edwards equiv.
+    EcPoint P_A, Q_A, P_B, Q_B;
+
+    SIDHEngine();
+    SIDHEngine(int l2, int l3, int f);
+    ~SIDHEngine();
 
     /* via Velu formulas, small isogenies of degree 3 and 4 */
     void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);
