@@ -3,6 +3,21 @@
 
 #include "ec.h"
 
+#define ALICE_KEY 3
+#define BOB_KEY 4
+
+typedef struct {
+    BigInt d; // param of Edwards curve
+    EcPoint P_img;
+    EcPoint Q_img;
+} SIDHPublicKey;
+
+typedef struct {
+    BigInt r;
+    EcPoint R;
+    int type; // Alice or Bob
+} SIDHPrivateKey;
+
 class SIDHEngine {
     /* 
         Parameters identifying group structure of E over field GF(p^2), p = (2^l2 * 3^l3 * f)-1 prime; 
@@ -10,19 +25,29 @@ class SIDHEngine {
         Alice must choose secret subgroup E_A = E[2^l2] from E as E[2^l2] = <[m_A]P_A + Q_A>, m_A - secret, P_A, Q_A - public
         Bob does mutatis mutandis.
     */
-    int l2, l3, f; 
+    int l4, l3, f; 
     
-    void Generate2LTorsionPoint(EcPoint* P2L);
+    void Generate4LTorsionPoint(EcPoint* P2L);
     void Generate3LTorsionPoint(EcPoint* P3L);
-
-    void GenerateParams();
+    
+    GaloisField* GF;
+    PseudoRandomGenerator* prng;
 public:
     EllipticCurve* BaseCurve; // think usual form 'd be y^2 = x^3 + x, need to check Edwards equiv.
+    // Edwards equiv. would be x^2 + y^2 = 1 -x^2y^2 (d = -1) or isomorphic a=2,d=-2
     EcPoint P_A, Q_A, P_B, Q_B;
 
     SIDHEngine();
-    SIDHEngine(int l2, int l3, int f);
+    SIDHEngine(int l4, int l3, int f);
+    SIDHEngine(int l4, int l3, int f, BigInt p, int bit_size);
     ~SIDHEngine();
+
+    void GenerateBasePoints();
+    void SetBasePoints(const EcPoint* p_A, const EcPoint* q_A, const EcPoint* p_B, const EcPoint* q_B);
+
+    void GeneratePrivateKey(int type, SIDHPrivateKey* priv); // Alice or Bob
+    void GeneratePublicKey(const SIDHPrivateKey* priv, SIDHPublicKey* pub );
+    void DeriveSharedSecret(const SIDHPrivateKey* priv, const SIDHPublicKey* pub_other, GFElement* sharedSecret);
 
     /* via Velu formulas, small isogenies of degree 3 and 4 */
     void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);

@@ -1,5 +1,50 @@
 #include "isogeny.h"
 
+SIDHEngine::SIDHEngine(int l2, int l3, int f) : l4(l2), l3(l3), f(f) {
+    
+}
+
+SIDHEngine::SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size) : l4(l2), l3(l3), f(f) {
+    GF = new GaloisField(p, 2, bit_size);
+    unsigned char seed[4] = { 0x05, 0x05, 0x05, 0x05 };
+    prng = new PseudoRandomGenerator((unsigned char*)seed, 4);
+    BaseCurve = new EllipticCurve(prng);
+    BigInt cardinality;
+    add(GF->GetWordSize(), *(GF->GetChar()), GF->Unity[0], cardinality);
+    sqr(2*GF->GetWordSize(), cardinality, cardinality);
+    GFElement d;
+    GF->Neg(GF->Unity, d);
+    BaseCurve->InitAsEdwards(GF, cardinality, d, NULL);
+}
+
+SIDHEngine::~SIDHEngine() {
+    delete prng;
+    delete GF;
+    delete BaseCurve;
+}
+
+void Generate4LTorsionPoint(EcPoint* P4L) {
+
+}
+
+void Generate3LTorsionPoint(EcPoint* P3L) {
+
+}
+
+void SIDHEngine::GenerateBasePoints() {
+    Generate3LTorsionPoint(&P_A);
+    Generate4LTorsionPoint(&P_B);
+    BaseCurve->ApplyDistortionMap(&P_A, &Q_A);
+    BaseCurve->ApplyDistortionMap(&P_B, &Q_B);
+}
+
+void SIDHEngine::SetBasePoints(const EcPoint* p_A, const EcPoint* q_A, const EcPoint* p_B, const EcPoint* q_B) {
+    BaseCurve->PointCopy(&P_A, p_A);
+    BaseCurve->PointCopy(&Q_A, q_A);
+    BaseCurve->PointCopy(&P_B, p_B);
+    BaseCurve->PointCopy(&Q_B, q_B);   
+}
+
 void SIDHEngine::Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F) {
     GFElement c0, c1, c2, c3, t0, t1, C, D;
     E->GF->Add(kernelPoint->Y, kernelPoint->Z, c0);
