@@ -121,6 +121,7 @@ public:
     ~EllipticCurve();
     void InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const GFElement a, const GFElement b, const EcPoint* BP = NULL);
     void InitAsEdwards(GaloisField* GF, const BigInt cardinality, const GFElement d, const EcPoint* BP = NULL);
+    void SetD(const GFElement d);
     void SetPseudoRandomProvider(PseudoRandomGenerator* p);
 
     bool CheckSupersingularity();

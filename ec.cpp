@@ -339,3 +339,7 @@ void EllipticCurve::ApplyDistortionMap(const EcPoint* P, EcPoint* Q) {
     GF->Mul(P->X, GF->I, Q->X);
     GF->Inv(P->X, Q->Y);
 }
+
+void EllipticCurve::SetD(const GFElement d) {
+    GF->Copy(this->d, d);
+}

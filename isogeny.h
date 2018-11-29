@@ -25,9 +25,9 @@ class SIDHEngine {
         Alice must choose secret subgroup E_A = E[2^l2] from E as E[2^l2] = <[m_A]P_A + Q_A>, m_A - secret, P_A, Q_A - public
         Bob does mutatis mutandis.
     */
-    int l4, l3, f; 
+    int l2, l3, f; 
     
-    void Generate4LTorsionPoint(EcPoint* P2L);
+    void Generate4LTorsionPoint(EcPoint* P4L);
     void Generate3LTorsionPoint(EcPoint* P3L);
     
     GaloisField* GF;
@@ -36,10 +36,11 @@ public:
     EllipticCurve* BaseCurve; // think usual form 'd be y^2 = x^3 + x, need to check Edwards equiv.
     // Edwards equiv. would be x^2 + y^2 = 1 -x^2y^2 (d = -1) or isomorphic a=2,d=-2
     EcPoint P_A, Q_A, P_B, Q_B;
+    BigInt L3, L2;
 
     SIDHEngine();
-    SIDHEngine(int l4, int l3, int f);
-    SIDHEngine(int l4, int l3, int f, BigInt p, int bit_size);
+    SIDHEngine(int l2, int l3, int f);
+    SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size);
     ~SIDHEngine();
 
     void GenerateBasePoints();
@@ -50,8 +51,8 @@ public:
     void DeriveSharedSecret(const SIDHPrivateKey* priv, const SIDHPublicKey* pub_other, GFElement* sharedSecret);
 
     /* via Velu formulas, small isogenies of degree 3 and 4 */
-    void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);
-    void Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F);
+    void Compute3Isogeny(const EllipticCurve* E, const EcPointProj* R, GFElement dImg); // E_dImg <- E_d/<R>
+    void Compute4Isogeny(const EllipticCurve* E, const EcPointProj* R, GFElement dImg);
 
     void Evaluate3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage);
     void Evaluate4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage);
@@ -64,8 +65,9 @@ public:
     //void Compute3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, int l);
     //void Compute4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, int l);
 
-    void ComputeAndEvaluate3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage, EllipticCurve* F, int l);
-    void ComputeAndEvaluate4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage, EllipticCurve* F, int l);
+
+    void ComputeAndEvaluate3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F, int l);
+    void ComputeAndEvaluate4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F, int l);
 };
 
 #endif

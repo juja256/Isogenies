@@ -1,10 +1,9 @@
 #include "isogeny.h"
 
 SIDHEngine::SIDHEngine(int l2, int l3, int f) : l4(l2), l3(l3), f(f) {
-    
 }
 
-SIDHEngine::SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size) : l4(l2), l3(l3), f(f) {
+SIDHEngine::SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size) : l2(l2), l3(l3), f(f) {
     GF = new GaloisField(p, 2, bit_size);
     unsigned char seed[4] = { 0x05, 0x05, 0x05, 0x05 };
     prng = new PseudoRandomGenerator((unsigned char*)seed, 4);
@@ -15,6 +14,16 @@ SIDHEngine::SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size) : l4(l2), 
     GFElement d;
     GF->Neg(GF->Unity, d);
     BaseCurve->InitAsEdwards(GF, cardinality, d, NULL);
+
+    shl(GF->GetWordSize(), GF->Unity[0], L2, l2);
+
+    BaseEl a3;
+    GF->BaseCopy(L3, GF->Unity[0]);
+    for (int i=0; i<l3; i++) {
+        GF->BaseCopy(a3, L3);
+        shl(GF->GetWordSize(), a3, L3, 1);
+        add(GF->GetWordSize(), L3, a3, L3);
+    }
 }
 
 SIDHEngine::~SIDHEngine() {
@@ -45,8 +54,8 @@ void SIDHEngine::SetBasePoints(const EcPoint* p_A, const EcPoint* q_A, const EcP
     BaseCurve->PointCopy(&Q_B, q_B);   
 }
 
-void SIDHEngine::Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F) {
-    GFElement c0, c1, c2, c3, t0, t1, C, D;
+void SIDHEngine::Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, GFElement D) {
+    GFElement c0, c1, c2, c3, t0, t1, C;
     E->GF->Add(kernelPoint->Y, kernelPoint->Z, c0);
     E->GF->Sqr(c0, c0);
     E->GF->Sqr(kernelPoint->Y, c1);
@@ -68,7 +77,6 @@ void SIDHEngine::Compute3Isogeny(const EllipticCurve* E, const EcPointProj* kern
 
     E->GF->Inv(C, C);
     E->GF->Mul(C, D, D);
-    F->InitAsEdwards(E->GF, E->n, D, NULL);
 }
 
 void SIDHEngine::Evaluate3Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage) {
@@ -87,8 +95,8 @@ void SIDHEngine::Evaluate3Isogeny(const EllipticCurve* E, const EcPointProj* ker
     E->GF->Sub(t2, t0, PImage->Z);
 }
 
-void SIDHEngine::Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F) {
-    GFElement c0, C, D;
+void SIDHEngine::Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, GFElement D) {
+    GFElement c0, C;
     E->GF->Add(kernelPoint->Y, kernelPoint->Z, c0);
     E->GF->Sqr(c0, c0);
     E->GF->Sqr(c0, C);
@@ -99,7 +107,6 @@ void SIDHEngine::Compute4Isogeny(const EllipticCurve* E, const EcPointProj* kern
 
     E->GF->Inv(C, C);
     E->GF->Mul(C, D, D);
-    F->InitAsEdwards(E->GF, E->n, D, NULL);
 }
 
 void SIDHEngine::Evaluate4Isogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, EcPointProj* PImage) {
