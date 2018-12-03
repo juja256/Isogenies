@@ -34,6 +34,7 @@ protected:
     virtual void Run(); 
     virtual void DeriveRandomFromState(unsigned char* ptr, int byteCnt);
 public:
+    PseudoRandomGenerator();
     PseudoRandomGenerator(unsigned char* seed, int len);
     virtual void GenerateSequence(int bit_len, unsigned char* dest);
     virtual void GenerateBaseEl(int bit_len, BaseEl a);
@@ -90,26 +91,25 @@ Scalar Multiplications(all in the projective coordinates):
     - wNAF(not tested) 
 */
 
-typedef void TScalarMul(const EcPointProj*, const BigInt, EcPointProj*, int);
+class EllipticCurve;
+
+typedef void (EllipticCurve::*TScalarMul)(const EcPointProj*, const BigInt, EcPointProj*, int);
 
 class EllipticCurve {
-    
     u8 form;
     bool isSupersingular;
-
-    GFElement d, a, b; // d for Edwards form; a,b for Weierstrass form
-    EcPoint BasePoint;
     bool isBasePointPresent;
 
     PseudoRandomGenerator* prng;
     EcPointProj* T; // for precomputations
 
-    TScalarMul* scalarMulEngine;
+    TScalarMul scalarMulEngine;
 
     void AcquireEdwardsForm();
     void ScalarMulNaive(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
     void ScalarMulMontgomery(const EcPointProj*, const BigInt, EcPointProj*, int bitLen=0);
 public:
+    GFElement d, a, b; // d for Edwards form; a,b for Weierstrass form
     BigInt n;
     GaloisField* GF;
     EcPoint UnityPoint;
@@ -121,7 +121,8 @@ public:
     ~EllipticCurve();
     void InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const GFElement a, const GFElement b, const EcPoint* BP = NULL);
     void InitAsEdwards(GaloisField* GF, const BigInt cardinality, const GFElement d, const EcPoint* BP = NULL);
-    void SetD(const GFElement d);
+
+
     void SetPseudoRandomProvider(PseudoRandomGenerator* p);
 
     bool CheckSupersingularity();
@@ -136,6 +137,9 @@ public:
 
     void PointCopy(EcPoint* dst, const EcPoint* src);
     void PointCopy(EcPointProj* dst, const EcPointProj* B);
+
+    std::string PointDump(const EcPoint* X);
+    std::string PointDump(const EcPointProj* X);
 
     void ToProjective(const EcPoint* src, EcPointProj* dst);
     void ToAffine(const EcPointProj* src, EcPoint* dst);

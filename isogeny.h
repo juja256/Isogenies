@@ -66,8 +66,8 @@ public:
     //void Compute4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, EllipticCurve* F, int l);
 
 
-    void ComputeAndEvaluate3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F, int l);
-    void ComputeAndEvaluate4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F, int l);
+    void ComputeAndEvaluate3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F);
+    void ComputeAndEvaluate4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F);
 };
 
 #endif

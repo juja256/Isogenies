@@ -1,6 +1,6 @@
 #include "isogeny.h"
 
-SIDHEngine::SIDHEngine(int l2, int l3, int f) : l4(l2), l3(l3), f(f) {
+SIDHEngine::SIDHEngine(int l2, int l3, int f) : l2(l2), l3(l3), f(f) {
 }
 
 SIDHEngine::SIDHEngine(int l2, int l3, int f, BigInt p, int bit_size) : l2(l2), l3(l3), f(f) {
@@ -32,11 +32,32 @@ SIDHEngine::~SIDHEngine() {
     delete BaseCurve;
 }
 
-void Generate4LTorsionPoint(EcPoint* P4L) {
+// 1 - x^2y^2 = x^2 + y^2
+void SIDHEngine::Generate4LTorsionPoint(EcPoint* P4L) {
+    BaseEl x, x2, y, y2;
+    GF->Copy(P4L->X, GF->Unity);
+    P4L->X[0][0] = 2; // X = 2
+    GF->Copy(P4L->Y, GF->Zero); // Y = 0
+    for (;;) {
+        GF->BaseSqr(P4L->X[0], x2);
+        GF->BaseSub(x2, GF->Unity[0], y);
+        GF->BaseMul(x2, BaseCurve->d[0], x2);
+        GF->BaseSub(x2, GF->Unity[0], x2);
+        GF->BaseInv(x2, x2);
+        GF->BaseMul(x2, y, y);
+        if (GF->IsQuadraticResidueBase(y)) {
+            EcPoint J;
+            GF->BaseSqrt(y, P4L->Y[0]);
+            BaseCurve->ScalarMul(P4L, L3, &J);
+            if (BaseCurve->PointEqual(&J, &BaseCurve->UnityPoint)) {
 
+            }
+        }
+        P4L->X[0][0] ++;
+    }
 }
 
-void Generate3LTorsionPoint(EcPoint* P3L) {
+void SIDHEngine::Generate3LTorsionPoint(EcPoint* P3L) {
 
 }
 
@@ -130,4 +151,12 @@ void SIDHEngine::Evaluate4Isogeny(const EllipticCurve* E, const EcPointProj* ker
     E->GF->Mul(PImage->Z, t3, t1);
     E->GF->Add(t0, t1, PImage->Y);
     E->GF->Sub(t0, t1, PImage->Z);
+}
+
+void ComputeAndEvaluate3LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F) {
+
+}
+
+void ComputeAndEvaluate4LIsogeny(const EllipticCurve* E, const EcPointProj* kernelPoint, const EcPointProj* P, const EcPointProj* Q, EcPointProj* PImage, EcPointProj* QImage, EllipticCurve* F) {
+
 }
