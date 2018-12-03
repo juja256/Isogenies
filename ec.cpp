@@ -9,6 +9,7 @@
 PseudoRandomGenerator::PseudoRandomGenerator(unsigned char* seed, int len) {
     srand(time(0));
     memcpy(this->state, seed, len);
+    this->state[0] = 0;
 }
 
 PseudoRandomGenerator::PseudoRandomGenerator() {
@@ -16,11 +17,15 @@ PseudoRandomGenerator::PseudoRandomGenerator() {
 }
 
 void PseudoRandomGenerator::Run() {
-    int a = rand();
-    *((int*)state) = a;
+    //int a = rand();
+    //*((int*)state) = a;
+    //this->state[0];
 }
 void PseudoRandomGenerator::DeriveRandomFromState(unsigned char* ptr, int byteCnt) {
-    memcpy(ptr, state, byteCnt);
+    //memcpy(ptr, state, byteCnt);
+    for (int i=0; i<byteCnt; i++) {
+        ptr[i] = 0x55;
+    }
 }
 
 void PseudoRandomGenerator::GenerateSequence(int bitLen, unsigned char* dest) {
@@ -321,6 +326,10 @@ void EllipticCurve::Dbl(const EcPointProj* P, EcPointProj* P2) {
         std::cout << "!DBL, Z=0: \n" << PointDump(&P_copy) << "\n" << PointDump(P2);
         std::cout << "!D: " << GF->Dump(D) << "\n";
         std::cout << "!F: " << GF->Dump(F) << "\n";
+        std::cout << "!A: " << GF->Dump(A) << "\n";
+        std::cout << "!B: " << GF->Dump(B) << "\n";
+        GF->Add(C, C, C);
+        std::cout << "!C: " << GF->Dump(C) << "\n";
     }
     #endif
 }

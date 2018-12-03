@@ -27,10 +27,15 @@ int main() {
 
     GF.Pow(t1, *(GF.GetSize()), t2);
     std::cout << GF.Dump(t2) << "\n";
+    EcPoint D;
+    
     try {
         EC.InitAsEdwards(&GF, n, d, NULL);
-        std::cout << "Base Point Valid: " << EC.IsPointOnCurve(&(EC.BasePoint)) << " " ;
-        std::cout << EC.CheckPointTorsion(&EC.BasePoint, p) << "\n";
+        EC.PointCopy(&D, &(EC.BasePoint));
+        
+        std::cout << "Base Point: " << EC.PointDump(&D) << "\n";
+        std::cout << "Base Point Valid: " << EC.IsPointOnCurve(&D) << " " ;
+        std::cout << EC.CheckPointTorsion(&D, p) << "\n";
         EC.GetJInvariant(J);
         std::cout << "J invariant: " << GF.Dump(J) << "\n";
     } catch(GaloisFieldException& e) {
