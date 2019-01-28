@@ -4,18 +4,28 @@
 #include <string.h>
 #include <time.h>
 #include <sstream>
+#include <iostream>
 
 PseudoRandomGenerator::PseudoRandomGenerator(unsigned char* seed, int len) {
     srand(time(0));
     memcpy(this->state, seed, len);
+    this->state[0] = 0;
+}
+
+PseudoRandomGenerator::PseudoRandomGenerator() {
+
 }
 
 void PseudoRandomGenerator::Run() {
-    int a = rand();
-    *((int*)state) = a;
+    //int a = rand();
+    //*((int*)state) = a;
+    //this->state[0];
 }
 void PseudoRandomGenerator::DeriveRandomFromState(unsigned char* ptr, int byteCnt) {
-    memcpy(ptr, state, byteCnt);
+    //memcpy(ptr, state, byteCnt);
+    for (int i=0; i<byteCnt; i++) {
+        ptr[i] = 0x55;
+    }
 }
 
 void PseudoRandomGenerator::GenerateSequence(int bitLen, unsigned char* dest) {
@@ -40,11 +50,11 @@ std::string EllipticCurveException::What() {
     return ss.str();
 }
 
-EllipticCurve::EllipticCurve() : isBasePointPresent(false), scalarMulEngine(&this->ScalarMulMontgomery) {}
+EllipticCurve::EllipticCurve() : isBasePointPresent(false), scalarMulEngine(&EllipticCurve::ScalarMulMontgomery) {}
 
-EllipticCurve::EllipticCurve(PseudoRandomGenerator* p): prng(p), isBasePointPresent(false), scalarMulEngine(&this->ScalarMulMontgomery) {}
+EllipticCurve::EllipticCurve(PseudoRandomGenerator* p): prng(p), isBasePointPresent(false), scalarMulEngine(&EllipticCurve::ScalarMulMontgomery) {}
 
-void EllipticCurve::InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const GFElement a, const GFElement b, const EcPoint* BP = NULL) {
+void EllipticCurve::InitAsWeierstrass(GaloisField* GF, const BigInt cardinality, const GFElement a, const GFElement b, const EcPoint* BP) {
     this->GF = GF;
     this->form = WEIERSTRASS;
     memcpy(this->n, cardinality, 2*BYTES_IN_WORD*GF->GetWordSize());
@@ -83,18 +93,25 @@ void EllipticCurve::ToProjective(const EcPoint* src, EcPointProj* dst) {
     GF->MulByBase(src->Y, dst->Z[0], dst->Y);
 }
 
+#define UNDEFINED_POINT -45
+
 void EllipticCurve::ToAffine(const EcPointProj* src, EcPoint* dst) {
     GFElement z_inv;
+    #ifdef DEBUG
+    if (GF->Equal(src->Z, GF->Zero)) {  
+        std::cout << "UNDEFINED POINT: \n" << PointDump(src);
+    }
+    #endif
     GF->Inv(src->Z, z_inv);
     GF->Mul(src->X, z_inv, dst->X);
     GF->Mul(src->Y, z_inv, dst->Y);
 }
 
-void EllipticCurve::InitAsEdwards(GaloisField* GF, const BigInt cardinality, const GFElement d, const EcPoint* BP = NULL) {
+void EllipticCurve::InitAsEdwards(GaloisField* GF, const BigInt cardinality, const GFElement d, const EcPoint* BP) {
     this->GF = GF;
     this->form = EDWARDS;
     memcpy(this->n, cardinality, 2*BYTES_IN_WORD*GF->GetWordSize());
-    this->GF->Copy(this->d, a);
+    this->GF->Copy(this->d, d);
     if (BP != NULL) {
         PointCopy(&(this->BasePoint), BP);
     } else {
@@ -112,19 +129,15 @@ void EllipticCurve::SetPseudoRandomProvider(PseudoRandomGenerator* p) {
 
 bool EllipticCurve::CheckSupersingularity() {
     BigInt r;
-    divide(2*GF->GetWordSize(), this->n, *(this->GF->GetChar()), NULL, r); // n = 1 (mod p)
+    divide(GF->GetWordSize(), this->n, *(this->GF->GetChar()), NULL, r); // n = 1 (mod p)
     return GF->BaseCmp(r, GF->Unity[0]) == 0;
 }
 
-void EllipticCurve::GenerateBasePoint() {
-    // ?
-}
-
 void EllipticCurve::GetJInvariant(GFElement J) {
-    
+    GFElement t,g,c,e;
     switch (form) {
         case EDWARDS: // 16(1 + 14*d + d^2)^3 / d(1-d)^4
-            GFElement t,g,c,e;
+            
             this->GF->Copy(t, GF->Zero);
             t[0][0] = 14;
             GF->Mul(t, d, t);
@@ -144,7 +157,7 @@ void EllipticCurve::GetJInvariant(GFElement J) {
             GF->Mul(e, t, J);
             break;
         case WEIERSTRASS: // 6912 a^3 / (4 a^3 + 27 b^2)
-            GFElement c,e,t,g;
+
             GF->Sqr(a, c);
             GF->Mul(c, a, c); // a ^ 3
             e[0][0] = 6912;
@@ -163,9 +176,10 @@ void EllipticCurve::GetJInvariant(GFElement J) {
 }
 
 bool EllipticCurve::IsPointOnCurve(const EcPoint* P) {
+    GFElement r,t,f,g;
     switch (form) {
         case EDWARDS:
-            GFElement r,t,f,g;
+            
             GF->Sqr(P->X, r);
             GF->Sqr(P->Y, t);
             GF->Add(r, t, f);
@@ -175,7 +189,7 @@ bool EllipticCurve::IsPointOnCurve(const EcPoint* P) {
 
             return GF->Equal(f, GF->Unity);
         case WEIERSTRASS:
-            GFElement r,t,f,g;
+
             GF->Sqr(P->Y, r);
             GF->Sqr(P->X, t);
             GF->Mul(t, P->X, t);
@@ -246,6 +260,12 @@ void EllipticCurve::Dbl(const EcPoint* A, EcPoint* B) {
 
 void EllipticCurve::Add(const EcPointProj* P1, const EcPointProj* P2, EcPointProj* P3) {
     AcquireEdwardsForm();
+    #ifdef DEBUG
+    EcPointProj P1_copy, P2_copy;
+    PointCopy(&P1_copy, P1);
+    PointCopy(&P2_copy, P2);
+    #endif
+
     /* 10M + 1S */
     GFElement A, B, C, D, E, F, G, T;
     GF->Mul(P1->Z, P2->Z, A); // A = Z1Z2
@@ -270,10 +290,20 @@ void EllipticCurve::Add(const EcPointProj* P1, const EcPointProj* P2, EcPointPro
     GF->Mul(P3->Y, G, P3->Y); // Y3 = AG(C-D) 
 
     GF->Mul(F, G, P3->Z); // Z3 = FG
+
+    #ifdef DEBUG
+    if (GF->Equal(P3->Z, GF->Zero)) {
+        std::cout << "!ADD, Z=0: \n" << PointDump(&P1_copy) << "\n" << PointDump(&P2_copy) << "\n" << PointDump(P3);
+    }
+    #endif
 }
 
 void EllipticCurve::Dbl(const EcPointProj* P, EcPointProj* P2) {
     AcquireEdwardsForm();
+    #ifdef DEBUG
+    EcPointProj P_copy;
+    PointCopy(&P_copy, P);
+    #endif
     /* 3M + 4S */
     GFElement A,B,C,D,E,F,G;
 
@@ -291,6 +321,17 @@ void EllipticCurve::Dbl(const EcPointProj* P, EcPointProj* P2) {
     GF->Mul(F, G, P2->X); // X2 = FG 
     GF->Mul(D, E, P2->Y); // Y2 = DE
     GF->Mul(D, F, P2->Z); // Z3 = DF 
+    #ifdef DEBUG
+    if (GF->Equal(P2->Z, GF->Zero)) {
+        std::cout << "!DBL, Z=0: \n" << PointDump(&P_copy) << "\n" << PointDump(P2);
+        std::cout << "!D: " << GF->Dump(D) << "\n";
+        std::cout << "!F: " << GF->Dump(F) << "\n";
+        std::cout << "!A: " << GF->Dump(A) << "\n";
+        std::cout << "!B: " << GF->Dump(B) << "\n";
+        GF->Add(C, C, C);
+        std::cout << "!C: " << GF->Dump(C) << "\n";
+    }
+    #endif
 }
 
 void EllipticCurve::ScalarMulNaive(const EcPointProj* P, const BigInt k, EcPointProj* Q, int bitLen) {
@@ -313,7 +354,7 @@ void EllipticCurve::ScalarMul(const EcPoint* P, const BigInt k, EcPoint* Q, int 
 }
 
 void EllipticCurve::ScalarMul(const EcPointProj* P, const BigInt k, EcPointProj* Q, int bitLen) {
-    this->scalarMulEngine(P, k, Q, bitLen);
+    (this->*scalarMulEngine)(P, k, Q, bitLen);
 }
 
 void EllipticCurve::ScalarMulMontgomery(const EcPointProj* P, const BigInt k, EcPointProj* Q, int bitLen) {
@@ -338,4 +379,40 @@ void EllipticCurve::ScalarMulMontgomery(const EcPointProj* P, const BigInt k, Ec
 void EllipticCurve::ApplyDistortionMap(const EcPoint* P, EcPoint* Q) {
     GF->Mul(P->X, GF->I, Q->X);
     GF->Inv(P->X, Q->Y);
+}
+
+EllipticCurve::~EllipticCurve() {
+
+}
+
+#define NOT_QUAD_RESIDUE -44
+
+void EllipticCurve::GenerateBasePoint() {
+    BaseEl x2;
+    GFElement y;
+    GF->Copy(y, GF->Zero);
+
+    prng->GenerateBaseEl(GF->GetBitSize()-1, BasePoint.X[0]);
+    GF->BaseCopy(BasePoint.X[1], GF->Zero[1]);
+
+    GF->BaseSqr(BasePoint.X[0], x2);
+    GF->BaseSub(x2, GF->Unity[0], y[0]);
+
+    GF->BaseMul(x2, d[0], x2);
+    GF->BaseSub(x2, GF->Unity[0], x2);
+    GF->BaseInv(x2, x2);
+    GF->BaseMul(x2, y[0], y[0]);
+    #ifdef DEBUG
+    if (!GF->IsQuadraticResidue(y)) throw GaloisFieldException(NOT_QUAD_RESIDUE);
+    #endif
+    GF->Sqrt(y, BasePoint.Y);
+
+}
+
+std::string EllipticCurve::PointDump(const EcPoint* X) {
+    return  "x: " + GF->Dump(X->X) + "\n" + "y: " + GF->Dump(X->Y) + "\n";
+}
+
+std::string EllipticCurve::PointDump(const EcPointProj* X) {
+    return  "X: " + GF->Dump(X->X) + "\n" + "Y: " + GF->Dump(X->Y) + "\n" + "Z: " + GF->Dump(X->Z) + "\n";
 }

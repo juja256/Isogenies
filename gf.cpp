@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 #define MAX_U64    0xFFFFFFFFFFFFFFFF
 #define MSB_M      0x8000000000000000
@@ -11,7 +12,7 @@
 
 static BigInt zero = { 0 };
 
-inline u64 get_bit(const u64* a, u64 num) {
+ u64 get_bit(const u64* a, u64 num) {
     return a[num/64] & ((u64)1 << (num % 64));
 }
 
@@ -213,7 +214,7 @@ void zero_int(u64 n, u64* a) {
 
 void add_mod(u64 n, const u64* a, const u64* b, const u64* m, u64* res) {
     res[n] = add(n, a, b, res);
-    if (cmp(n+1, res, m) == 1) sub(n+1, res, m, res);
+    if (cmp(n+1, res, m) != -1) sub(n+1, res, m, res);
 }
 
 void mul_mod(u64 n, const u64* a, const u64* b, const u64* m, u64* res) {
@@ -366,12 +367,15 @@ GaloisField::GaloisField() {
 GaloisField::GaloisField(const BigInt characteristic, int ext, int bitSize) {
     this->bitSize = bitSize;
     this->wordSize = (bitSize % ARCH == 0) ? bitSize / ARCH : bitSize / ARCH + 1;
+    memset(this->characteristic, 0, 2*8*wordSize);
     copy( this->characteristic, characteristic, 2*wordSize);
 
     if (ext > 2) {
         throw GaloisFieldException(UNSUPPORTED_PARAM);
     }
     this->extension = ext;
+    memset(size, 0, 2*8*wordSize);
+    memset(halfSize, 0, 2*8*wordSize);
     sqr(wordSize, characteristic, this->size);
     shr(2*wordSize, this->size, this->halfSize, 1);
 }
@@ -401,9 +405,12 @@ void GaloisField::BaseAdd(const BaseEl a, const BaseEl b, BaseEl c) {
 }
 
 void GaloisField::BaseSub(const BaseEl a, const BaseEl b, BaseEl c) {
-    int borrow  = sub(wordSize, a, b, c);
+    u64 borrow  = sub(wordSize, a, b, c);
+    //std::cout << "From Sub\n";
+    //std::cout << Dump(a) << "\n" << Dump(b) << "\n" << Dump(c) << "\n";
+    //std::cout.flush();
     if (bitSize % ARCH != 0) {
-        borrow = c[wordSize - 1] & ((u64)1 << (wordSize % ARCH) );
+        borrow = c[wordSize - 1] & ((u64)1 << (bitSize % ARCH) );
     }
     if (borrow != 0) {
         add(wordSize, c, characteristic, c);
@@ -480,9 +487,18 @@ void GaloisField::BaseSqrt(const BaseEl a, BaseEl r) {
 
 bool GaloisField::IsQuadraticResidue(const GFElement a) {
     GFElement b;
-    Pow(a, halfSize, 2*wordSize, b);
-    return BaseCmp(b[0], Unity[0]) == 0;
+    Pow(a, halfSize, 2*bitSize, b);
+    return Equal(b, Unity);
 }
+
+bool GaloisField::IsQuadraticResidueBase(const BaseEl a) {
+    BaseEl b, c;
+    shr(wordSize, characteristic, b, 1);
+    BasePow(a, b, c);
+    return BaseCmp(c, Unity[0]) == 0;
+}
+
+#define SQRT_ERROR -42
 
 // Algorithm 9 in https://eprint.iacr.org/2012/685.pdf for p = 3 (mod 4)
 bool GaloisField::Sqrt(const GFElement a, GFElement r) {
@@ -490,26 +506,31 @@ bool GaloisField::Sqrt(const GFElement a, GFElement r) {
     GFElement a1, x0, a0, alpha, b;
     BigInt c;
     BaseCopy(c, characteristic);
-    c[0] &= (u64)(-1) << 1;
+    c[0] -= 1; // c = -1
 
-    shr(wordSize, characteristic, p, 2);
-    shr(wordSize, characteristic, p2, 1);
+    shr(wordSize, characteristic, p, 2); // p >> 2
+    shr(wordSize, characteristic, p2, 1); // p >> 1
 
-    Pow(a, p, wordSize, a1);
-    Mul(a1, a, x0);
-    Mul(x0, a1, alpha);
-    Pow(alpha, characteristic, wordSize, a0);
+    Pow(a, p, bitSize, a1); // a^{(p-3)/4}
+    Mul(a1, a, x0); // a^{(p-3)/4 + 1}
+    Mul(x0, a1, alpha); // a^{(p-3)/2 + 1}
+    Pow(alpha, characteristic, bitSize, a0); // 
     Mul(a0, alpha, a0);
-    if (BaseCmp(a0[0], c) == 0) {
-        return false;
+    if (!Equal(a0, Unity)) {
+        return false; // check if quad. residue
     }
     if (BaseCmp(alpha[0], c) == 0) { 
         Mul(x0, I, r);
     } else {
         Add(alpha, Unity, b);
-        Pow(b, p2, wordSize, b);
+        Pow(b, p2, bitSize, b);
         Mul(x0, b, r);
     }
+
+    #ifdef DEBUG
+    Sqr(r, alpha);
+    if (!Equal(alpha, a)) throw GaloisFieldException(SQRT_ERROR);
+    #endif
     return true;
 } 
 
@@ -560,6 +581,15 @@ std::string GaloisField::Dump(const GFElement a) {
     }
     out.flags(oldFlags);
     out << "j";
+
+    return out.str();
+}
+
+std::string GaloisField::Dump(const BaseEl a) {
+    std::stringstream out;
+    for (int i=wordSize-1; i>=0; i--) {
+        out << std::uppercase << std::setfill('0') << std::setw(16) << std::hex << a[i];
+    }
     return out.str();
 }
 
@@ -591,7 +621,7 @@ void GaloisField::BasePow(const BaseEl a, const BigInt n, int nlen, BaseEl b) {
 }
 
 void GaloisField::BasePow(const BaseEl a, const BigInt n, BaseEl b) {
-    BasePow(a, n, wordSize, b);
+    BasePow(a, n, bitSize, b);
 }
 
 void GaloisField::Pow(const GFElement a, const BigInt n, int nlen, GFElement b) {
@@ -606,7 +636,7 @@ void GaloisField::Pow(const GFElement a, const BigInt n, int nlen, GFElement b) 
 }
 
 void GaloisField::Pow(const GFElement a, const BigInt n, GFElement b) {
-    Pow(a, n, 2*wordSize, b);
+    Pow(a, n, 2*bitSize, b);
 }
 
 void GaloisField::BaseInv(const BaseEl a, BaseEl b) {
@@ -614,17 +644,29 @@ void GaloisField::BaseInv(const BaseEl a, BaseEl b) {
     inv_mod(wordSize, a, characteristic, b);
 }
 
+#define INV_INVALID -43
+
 void GaloisField::Inv(const GFElement a, GFElement b) {
     // Thanks to YaSV for reminding basic complex analysis: 
     // 1/(x+yi) = (x-yi)/(x^2 + y^2)
+    #ifdef DEBUG
+    GFElement t_1;
+    Copy(t_1, a);
+    #endif
     BaseEl c, d;
     BaseSqr(a[0], c);
     BaseSqr(a[1], d);
     BaseAdd(c, d, c);
     BaseInv(c, d);
+
     Copy(b, a);
     BaseNeg(b[1], b[1]);
     MulByBase(b, d, b);
+
+    #ifdef DEBUG
+    Mul(t_1, b, t_1);
+    if (!Equal(t_1, Unity)) throw GaloisFieldException(INV_INVALID);
+    #endif
 }
 
 void GaloisField::BaseMul(const BaseEl a, const BaseEl b, BaseEl c) {
@@ -633,16 +675,15 @@ void GaloisField::BaseMul(const BaseEl a, const BaseEl b, BaseEl c) {
 
 void GaloisField::Mul(const GFElement a, const GFElement b, GFElement c) {
     // (x1 + y1*i) * (x2 + y2*i) = x1*x2 - y1*y2 + (y1*x2 + y2*x1)*i
-    BaseEl d1, d2;
+    BaseEl d1, d2, d3, d4;
     BaseMul(a[0], b[0], d1);
-    BaseMul(a[0], b[0], d2);
+    BaseMul(a[1], b[1], d2);
+
+    BaseMul(a[1], b[0], d3);
+    BaseMul(a[0], b[1], d4);
 
     BaseSub(d1, d2, c[0]);
-
-    BaseMul(a[1], b[0], d1);
-    BaseMul(a[0], b[1], d2);
-
-    BaseAdd(d1, d2, c[1]);
+    BaseAdd(d3, d4, c[1]);
 }
 
 void GaloisField::BaseSqr(const BaseEl a, BaseEl c) {
@@ -653,8 +694,11 @@ void GaloisField::Sqr(const GFElement a, GFElement c) {
     BaseEl d, b;
     BaseSqr(a[0], d);
     BaseSqr(a[1], b);
-    BaseSub(d, b, c[0]);
+
     BaseMul(a[0], a[1], c[1]);
+
+    BaseSub(d, b, c[0]);
+    
     BaseAdd(c[1], c[1], c[1]);
 }
 
@@ -675,14 +719,22 @@ void GaloisField::MulByBase(const GFElement a, const BaseEl e, GFElement c) {
 }
 
 void GaloisField::MulBy2Power(const GFElement a, int pp, GFElement b) {
-    for (int i=0; i<extension; i++) {
+    Copy(b, a);
+    for (int i=0; i<pp; i++) {
+        Add(b, b, b);
+    }
+    /*for (int i=0; i<extension; i++) {
         BigInt d;
         BaseCopy(d, Zero[0]);
         shl(wordSize, a[i], d, pp);
         divide(wordSize, d, characteristic, NULL, b[i]);
-    }
+    }*/
 }
 
 bool GaloisField::Equal(const GFElement a, const GFElement b) {
     return (BaseCmp(a[0], b[0]) == 0) && (BaseCmp(a[1], b[1]) == 0);
+}
+
+const BigInt* GaloisField::GetSize() {
+    return &size;
 }

@@ -10,6 +10,7 @@
 #define UNSUPPORTED_PARAM -1
 #define INVALID_DATA -2
 
+#define DEBUG 1
 
 #include <string>
 
@@ -43,6 +44,7 @@ public:
     GaloisField();
     GaloisField(const BigInt characteristic, int ext, int bitSize);
     const BigInt* GetChar();
+    const BigInt* GetSize();
     int GetWordSize();
     int GetBitSize();
     int GetExtension();
@@ -51,11 +53,14 @@ public:
     static const GFElement Unity;
     static const GFElement I;
 
-    void InitFromString(BaseEl a, const char* str);
-    void InitFromString(GFElement a, const char* str);
+    static void InitFromString(BaseEl a, const char* str);
+    static void InitFromString(GFElement a, const char* str);
     std::string Dump(const GFElement a);
+    std::string Dump(const BaseEl a);
 
     bool IsQuadraticResidue(const GFElement a);
+    bool IsQuadraticResidueBase(const BaseEl a);
+
     void Copy(GFElement a, const GFElement b);
     bool Equal(const GFElement a, const GFElement b);
     void Add(const GFElement a, const GFElement b, GFElement c);
