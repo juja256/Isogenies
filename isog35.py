@@ -46,20 +46,20 @@ def miller_rabine_test(n):
                 return False
     return True
 
-def p35_search(bitlen):
+def p35_search(sec_lvl):
+    bitlen = sec_lvl*3
+    print("p35 primes near %d bit quantum security level in the problem of Finding Path in Isogeny Graph" % (sec_lvl))
     l3 = int(bitlen*math.log(2, 3))
     l5 = int(bitlen*math.log(2, 5))
-    print("l3, l5: ", l3, l5)
-    for k in range(l3-20, l3+20):
-        for m in range(l5-20, l5+20):
+    for k in range(l3-10, l3+10):
+        for m in range(l5-10, l5+10):
             for p2 in [4]:
                 p = p2 * (3**k) * (5**m) - 1
                 if miller_rabine_test(p):
-                    print("p found: ", p2, k, m, p)
+                    print("p = %d * 3^%d * 5^%d - 1 = 0x%x; ||p|| = %d bit; q_comp(E[3^%d]) = %d qbit; q_comp(E[5^%d]) = %d qbit." % ( p2, k, m, p, math.ceil(math.log2(p)), k, math.ceil(k*math.log2(3)/3), m, math.ceil(m*math.log2(5)/3) ) )
 
 def main():
-    p35_search(384)
-
+    p35_search(128)
 
 if __name__ == "__main__":
     main()
