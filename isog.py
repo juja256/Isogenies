@@ -11,12 +11,23 @@ class GFp2El:
         return GFp2El(0, 1 , p)
 
     def __init__(self, x, y, p):
-        self.x = x
-        self.y = y
-        self.p = p
+        self.x = x % p
+        self.y = y % p
+        self.p = p % p
 
     def __add__(self, other):
+        if type(other) == int:
+            other = GFp2El(other, 0, self.p)
         return GFp2El( self.x + other.x % self.p, self.y + other.y % self.p, self.p )
+
+    def __radd__(self, other):
+        return self + other
+
+    def __sub__(self, other):
+        return self + (-other)
+
+    def __rsub__(self, other):
+        return other + (-self)
 
     def __neg__(self):
         return GFp2El( (-self.x) % self.p, (-self.y)% self.p , self.p)
@@ -26,14 +37,22 @@ class GFp2El:
             return GFp2El( (self.x * other) % self.p, (self.y * other) % self.p, self.p ) 
         return GFp2El( (self.x * other.x - self.y*other.y) % self.p, (self.x * other.y + self.y * other.x) % self.p, self.p )
 
+    def __rmul__(self, other):
+        return self * other
+
+    def __truediv__(self, other):
+        return self * other.inv()
+
     def __str__(self):
         return hex(self.x) + " + " + hex(self.y) + " i"
 
     def __eq__(self, other):
+        if type(other) == int:
+            other = GFp2El(other, 0, self.p)
         return self.x == other.x and self.y == other.y and self.p == other.p
 
     def pow(self, n):
-        a = GFp2El.unity(self.p)
+        a = 1
         t = self.clone()
         for i in range(n.bit_length()):
             if n & (1 << i):
@@ -58,10 +77,10 @@ class GFp2El:
         if s.x == (-1) % self.p and s.y == 0:
             return GFp2El.i(self.p) * self.pow( (self.p + 1)/4 )
         else:
-            return (GFp2El.unity(self.p) + s).pow( (self.p - 1)//2 ) * self.pow( (self.p + 1)/4 )
+            return (1 + s).pow( (self.p - 1)//2 ) * self.pow( (self.p + 1)/4 )
 
     def is_quad_residue(self) -> bool:
-        return self.pow( (self.p * self.p - 1) // 2) == GFp2El.unity(self.p)
+        return self.pow( (self.p * self.p - 1) // 2) == 1
     
 
 """
@@ -76,19 +95,21 @@ class SupersingularEllipticCurve:
     
     def check_on_curve(self, P):
         Q = P.convert_to_affine()
-        if (Q.x * Q.x + Q.y * Q.y) == (GFp2El.unity(Q.x.p) + self.d * Q.x * Q.x * Q.y * Q.y):
+        if (Q.x * Q.x + Q.y * Q.y) == (1 + self.d * Q.x * Q.x * Q.y * Q.y):
             return True
         return False
 
     def add(self, P, Q):
-        pass
+        if P.is_affine:
+            return EcPoint( 
+            (P.x * Q.x - P.y * Q.y) / ( 1 - self.d * P.x * Q.x * P.y * Q.y), 
+            (P.x * Q.y + P.y * Q.x) / ( 1 + self.d * P.x * Q.x * P.y * Q.y) )
 
     def mul(self, P, k):
         pass
 
 
 class EcPoint:
-
 
     def __init__(self, *args):
         if len(args) == 2:
@@ -112,7 +133,6 @@ class EcPoint:
             return EcPoint(self.x, self.y, GFp2El.unity(self.x.p))
         else:
             return self
-
     
 
 if __name__ == "__main__":
