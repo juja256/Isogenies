@@ -1,3 +1,4 @@
+from random import randint
 """ 
     GFp2El - class representing element in the GF(p^2) field, p = 3 (mod 4)
 """ 
@@ -13,7 +14,7 @@ class GFp2El:
     def __init__(self, x, y, p):
         self.x = x % p
         self.y = y % p
-        self.p = p % p
+        self.p = p
 
     def __add__(self, other):
         if type(other) == int:
@@ -75,23 +76,24 @@ class GFp2El:
             raise RuntimeError("not residue")
         s = self.pow((self.p - 1) // 2)
         if s.x == (-1) % self.p and s.y == 0:
-            return GFp2El.i(self.p) * self.pow( (self.p + 1)/4 )
+            return GFp2El.i(self.p) * self.pow( (self.p + 1)//4 )
         else:
-            return (1 + s).pow( (self.p - 1)//2 ) * self.pow( (self.p + 1)/4 )
+            return (1 + s).pow( (self.p - 1)//2 ) * self.pow( (self.p + 1)//4 )
 
     def is_quad_residue(self) -> bool:
         return self.pow( (self.p * self.p - 1) // 2) == 1
     
 
 """
-    SupersingularEllipticCurve - supersingular ellipric curve in Edwards form over GF(p^2)
+    SupersingularEllipticCurve - supersingular ellipric curve in Edwards form over GF(p^2), p = 4 3^a 5^b - 1
 """
 class SupersingularEllipticCurve:
     # x^2 + y^2 = 1 + d x^2 y^2
-    def __init__(self, p, d):
-        self.p = p
+
+    def __init__(self, a, b, d):
         self.d = d
-        self.n = (p+1)**2
+        self.p = 4 * (3**a) * (5**b) - 1
+        self.n = (self.p+1)**2
     
     def check_on_curve(self, P):
         Q = P.convert_to_affine()
@@ -102,12 +104,34 @@ class SupersingularEllipticCurve:
     def add(self, P, Q):
         if P.is_affine:
             return EcPoint( 
-            (P.x * Q.x - P.y * Q.y) / ( 1 - self.d * P.x * Q.x * P.y * Q.y), 
-            (P.x * Q.y + P.y * Q.x) / ( 1 + self.d * P.x * Q.x * P.y * Q.y) )
+                (P.x * Q.x - P.y * Q.y) / ( 1 - self.d * P.x * Q.x * P.y * Q.y), 
+                (P.x * Q.y + P.y * Q.x) / ( 1 + self.d * P.x * Q.x * P.y * Q.y) 
+            )
+        else:
+            return EcPoint(
+                P.z * Q.z * ( P.z * P.z * Q.z * Q.z + self.d * P.x * P.y * Q.x * Q.y) * (P.x * Q.x - P.y * Q.y),
+                P.z * Q.z * ( P.z * P.z * Q.z * Q.z - self.d * P.x * P.y * Q.x * Q.y) * (P.x * Q.y + P.y * Q.x),
+                ( P.z * P.z * Q.z * Q.z + self.d * P.x * P.y * Q.x * Q.y ) * ( P.z * P.z * Q.z * Q.z - self.d * P.x * P.y * Q.x * Q.y)
+            )
 
     def mul(self, P, k):
-        pass
+        Q = EcPoint(1, 0, 1)
+        T = P.clone()
+        for i in range(k.bit_length()):
+            if k & (1 << i):
+                Q = self.add(Q, T)
+            T = self.add(T, T)
 
+        return Q
+
+    def rand_point(self):
+        x = GFp2El(randint(2, self.p-1), 0, self.p)
+        while True:
+            a = (1 - x*x) / (1 - self.d * x*x)
+            if a.is_quad_residue():
+                return EcPoint(x, a.sqrt())
+            x += 1
+            
 
 class EcPoint:
 
@@ -134,6 +158,18 @@ class EcPoint:
         else:
             return self
     
+    def clone(self):
+        if self.is_affine:
+            return EcPoint(self.x, self.y)
+        else:
+            return EcPoint(self.x, self.y, self.z)
+
+    def __str__(self):
+        if self.is_affine:
+            return "x = {}\ny = {}\n".format(self.x, self.y)
+        else:
+            return "X = {}\nY = {}\nZ = {}".format(self.x, self.y, self.z)
+
 
 if __name__ == "__main__":
     aa = GFp2El(9, 0, 59) 
@@ -142,6 +178,11 @@ if __name__ == "__main__":
 
     d = a * a.inv()
     print(a)
-    print(a.inv())
-    print(a * a.inv())
-    print(b.is_quad_residue())
+    print(a.sqrt())
+    print(a.is_quad_residue())
+
+    ec = SupersingularEllipticCurve(1, 1, GFp2El(-1, 0, 59))
+
+    P = ec.rand_point()
+    print(P)
+    print(ec.check_on_curve(P))
