@@ -60,6 +60,9 @@ class GFp2El:
                 a = a * t
             t = t*t
         return a
+    
+    def __pow__(self, n):
+        return self.pow(n)
 
     def clone(self):
         return GFp2El(self.x, self.y, self.p)
@@ -91,10 +94,16 @@ class SupersingularEllipticCurve:
     # x^2 + y^2 = 1 + d x^2 y^2
 
     def __init__(self, a, b, d):
+        self.a = a
+        self.b = b
         self.d = d
         self.p = 4 * (3**a) * (5**b) - 1
         self.n = (self.p+1)**2
     
+    def j(self):
+        d = GFp2El(self.d, 0, self.p)
+        return (16 * (1 + 14*d + d*d).pow(3)) / (d * (1-d).pow(4))
+
     def check_on_curve(self, P):
         Q = P.convert_to_affine()
         if (Q.x * Q.x + Q.y * Q.y) == (1 + self.d * Q.x * Q.x * Q.y * Q.y):
@@ -116,12 +125,15 @@ class SupersingularEllipticCurve:
 
     def mul(self, P, k):
         Q = EcPoint(1, 0, 1)
-        T = P.clone()
+        T = P.convert_to_proj()
         for i in range(k.bit_length()):
             if k & (1 << i):
                 Q = self.add(Q, T)
+                if Q.z == 0:
+                    raise RuntimeError("Exceptional point: " + str(Q))
             T = self.add(T, T)
-
+            if T.z == 0:
+                raise RuntimeError("Exceptional point: " + str(T))
         return Q
 
     def rand_point(self):
@@ -131,7 +143,64 @@ class SupersingularEllipticCurve:
             if a.is_quad_residue():
                 return EcPoint(x, a.sqrt())
             x += 1
-            
+
+    def find_order_dummy(self, P):
+        for i in range(1, self.n+1):
+            if self.mul(P, i).convert_to_affine() == EcPoint(1, 0):
+                return i
+
+    def generate_3_a_torsion_point(self, a = None):
+        if a == None:
+            a = self.a
+        while True:
+            P = self.rand_point()
+            P = self.mul(P, 4)
+            P = self.mul(P, 5**self.b)
+            P = self.mul(P, 3**(self.a - a))
+            if all([self.mul(P, 3**k) != EcPoint(1, 0) for k in range(a)]) and self.mul(P, 3**a) == EcPoint(1, 0):
+                return P
+
+    def generate_5_b_torsion_point(self, b = None):
+        if b == None:
+            b = self.b
+        while True:
+            P = self.rand_point()
+            P = self.mul(P, 4)
+            P = self.mul(P, 3**self.a)
+            P = self.mul(P, 5**(self.b - b))
+            if all([self.mul(P, 5**k) != EcPoint(1, 0) for k in range(b)]) and self.mul(P, 5**b) == EcPoint(1, 0):
+                return P
+
+    def distortion_map(self, P):
+        Q = P.convert_to_affine()
+        return EcPoint(Q.x * GFp2El(0, 1, self.p), Q.y.inv())
+
+    def compute_3_isogeny(self, P3):
+        P3 = P3.convert_to_affine()
+        return (P3.x**8) * (self.d**3)
+    
+    def compute_5_isogeny(self, P5):
+        P5 = P5.convert_to_affine()
+        return (P5.x**8) * (self.d**5)
+
+    def evaluate_3_isogeny(self, P3, P):
+        P3 = P3.convert_to_affine()
+        P = P.convert_to_y_less()
+        return EcPoint(
+            P.x * ( (P.x**2) - (P3.y**2) * (P.z**2) ), 
+            None, 
+            (P3.x**2) * P.z * (P.z**2 - self.d * (P3.y**2) * (P.x**2) ) 
+        )
+    
+    def evaluate_5_isogeny(self, P5, P):
+        P5_2 = self.mul(P5, 2).convert_to_affine()
+        P5 = P5.convert_to_affine()
+        P = P.convert_to_y_less()
+        return EcPoint(
+            P.x * ( P.x**2 - (P5.y**2) * (P.z**2) ) * ( P.x**2 - (P5_2.y**2) * (P.z**2) ),
+            None,
+            ((P5.x * P5_2.x) ** 2) * P.z * (P.z**2 - self.d * (P5.y**2) * (P.x**2)) * (P.z**2 - self.d * (P5_2.y**2) * (P.x**2))
+        )
 
 class EcPoint:
 
@@ -140,11 +209,14 @@ class EcPoint:
             self.x = args[0]
             self.y = args[1]
             self.is_affine = True
+            self.y_less = self.y is None
+
         elif len(args) == 3:
             self.x = args[0]
             self.y = args[1]
             self.z = args[2]
             self.is_affine = False
+            self.y_less = self.y is None
 
     def convert_to_affine(self):
         if self.is_affine:
@@ -158,6 +230,12 @@ class EcPoint:
         else:
             return self
     
+    def convert_to_y_less(self):
+        if self.y_less:
+            return self
+        Q = self.convert_to_proj()
+        return EcPoint(Q.x, None, Q.z)
+
     def clone(self):
         if self.is_affine:
             return EcPoint(self.x, self.y)
@@ -166,9 +244,14 @@ class EcPoint:
 
     def __str__(self):
         if self.is_affine:
-            return "x = {}\ny = {}\n".format(self.x, self.y)
+            return "x = {}\ny = {}".format(self.x, self.y)
         else:
             return "X = {}\nY = {}\nZ = {}".format(self.x, self.y, self.z)
+
+    def __eq__(self, other):
+        a = self.convert_to_affine()
+        b = other.convert_to_affine()
+        return a.x == b.x and a.y == b.y
 
 
 if __name__ == "__main__":
@@ -181,8 +264,23 @@ if __name__ == "__main__":
     print(a.sqrt())
     print(a.is_quad_residue())
 
-    ec = SupersingularEllipticCurve(1, 1, GFp2El(-1, 0, 59))
+    ec = SupersingularEllipticCurve(8, 3, -1)
+    print(ec.n)
+    P3 = ec.generate_3_a_torsion_point(1)
+    P5 = ec.generate_5_b_torsion_point(1)
 
-    P = ec.rand_point()
-    print(P)
-    print(ec.check_on_curve(P))
+    print(ec.j())
+    print(P3.convert_to_affine())
+    print(P5.convert_to_affine())
+
+    P3_d = ec.mul(ec.distortion_map(P3), 4)
+    P5_d = ec.mul(ec.distortion_map(P5), 4)
+
+    print(P3_d.convert_to_affine())
+    #print(P5_d.convert_to_affine())
+
+    print(ec.find_order_dummy(P3))
+    print(ec.find_order_dummy(P3_d))
+    
+    print(ec.compute_3_isogeny(P3))
+    print(ec.compute_5_isogeny(P3_d))
