@@ -59,7 +59,7 @@ def p35_search(sec_lvl):
                     print("p = %d * 3^%d * 5^%d - 1 = 0x%x; ||p|| = %d bit; q_comp(E[3^%d]) = %d qbit; q_comp(E[5^%d]) = %d qbit." % ( p2, k, m, p, math.ceil(math.log2(p)), k, math.ceil(k*math.log2(3)/3), m, math.ceil(m*math.log2(5)/3) ) )
 
 def main():
-    p35_search(128)
+    p35_search(10)
 
 if __name__ == "__main__":
     main()

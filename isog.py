@@ -137,7 +137,7 @@ class SupersingularEllipticCurve:
         return Q
 
     def rand_point(self):
-        x = GFp2El(randint(2, self.p-1), 0, self.p)
+        x = GFp2El(randint(1, self.p - 1), 0, self.p)
         while True:
             a = (1 - x*x) / (1 - self.d * x*x)
             if a.is_quad_residue():
