@@ -94,7 +94,7 @@ class GFp2El:
         return self * other.inv()
 
     def __str__(self):
-        return str(self.x) + " + " + str(self.y) + " i"
+        return str(self.x) + " + " + str(self.y) + "i"
 
     def __repr__(self):
         return self.__str__()
@@ -225,7 +225,7 @@ class SupersingularEllipticCurve:
             if all([self.mul(P, 3**k) != EcPoint(1, 0) for k in range(a)]) and self.mul(P, 3**a) == EcPoint(1, 0):
                 return P
 
-    def generate_5_b_torsion_point(self, b = None):
+    def generate_5_a_torsion_point(self, b = None):
         if b == None:
             b = self.b
         while True:
@@ -293,17 +293,10 @@ class SupersingularEllipticCurve:
             P3 = ec.add(P1, P2) # <a,b>
             P4 = ec.add(P3, P1) # <2a,b>
             
-            #print("j = ", j0)
-            #print(P1.convert_to_affine())
-            #print(P2.convert_to_affine())
-            #print(P3.convert_to_affine())
-            #print(P4.convert_to_affine())
-            
             kernels = [P1, P2, P3, P4]
             for kernel in kernels:
                 isog = ec.compute_3_isogeny_curve(kernel)
                 j1 = isog.j()
-                print("j1 = ", j1)
                 if j1 in vertexes:
                     edges.append((j0, j1))
                 elif not j1 in vertexes:
@@ -312,7 +305,59 @@ class SupersingularEllipticCurve:
                     bfsq.put(isog)
 
         return (vertexes, edges)
-                    
+    
+    def draw_5_isogeny_graph(self):
+        edges = []
+        vertexes = []
+        bfsq = Queue(0)
+        bfsq.put(self)
+        vertexes.append(self.j())
+        
+        while not bfsq.empty(): # bfs...
+            ec = bfsq.get()
+            j0 = ec.j()
+            P1 = ec.generate_5_a_torsion_point(1) # <a,0>
+            P12 = ec.mul(P1, 2)
+            P2 = P1
+            while P2 == P1 or P2 == P1.neg() or P2 == P12 or P2 == P12.neg():
+                P2 = ec.generate_5_a_torsion_point(1)
+            
+            P3 = ec.add(P1, P2) # <a,b>
+            P4 = ec.add(P3, P1) # <2a,b>
+            P5 = ec.add(P4, P1) # <3a, b>
+            P6 = ec.add(P5, P1) # <4a, b>
+
+            kernels = [P1, P2, P3, P4, P5, P6]
+            for kernel in kernels:
+                print(ec.find_order_dummy(kernel))
+                isog = ec.compute_5_isogeny_curve(kernel)
+                j1 = isog.j()
+                if j1 in vertexes:
+                    edges.append((j0, j1))
+                elif not j1 in vertexes:
+                    vertexes.append(j1)
+                    edges.append((j0, j1))
+                    bfsq.put(isog)
+    
+    def draw_markovian_chain_from_graph(self, e):
+        d = {}
+        for ee in e:
+            if str(ee[0]) not in d:
+                d[str(ee[0])] = {str(ee[1]): 1}
+            else:
+                if str(ee[1]) not in d[str(ee[0])]:
+                    d[str(ee[0])][str(ee[1])] = 1
+                else:
+                    d[str(ee[0])][str(ee[1])] += 1
+
+        eee = []
+        for k in d:
+            for v in d[k]:
+                d[k][v] = 1.0 * d[k][v] / 4
+                eee.append((k, v, "{:.2f}".format(d[k][v])))
+
+        return eee
+
 
 class EcPoint:
 
@@ -375,20 +420,36 @@ class EcPoint:
         b = other.convert_to_affine()
         return a.x == b.x and a.y == b.y
 
-def render_graph(v, e):
+def render_graph(v, e, name="g1"):
     dot = Digraph()
     for vv in v:
         dot.node(vv.__str__())
 
     for ee in e:
-        dot.edge(ee[0].__str__(), ee[1].__str__())
+        if len(ee) == 2:
+            dot.edge(ee[0].__str__(), ee[1].__str__())
+        else:
+            dot.edge(ee[0].__str__(), ee[1].__str__(), ee[2].__str__())
 
-    dot.render("g1", view=True)
+    dot.render(name, view=False, format='png')
 
 def test():
     ec = SupersingularEllipticCurve(2, 1, -1)
     v, e = ec.draw_3_isogeny_graph()
-    render_graph(v, e)
+    render_graph(v, e, "p{}_3_isogenies".format(ec.p))
+    mc = ec.draw_markovian_chain_from_graph(e)
+    render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
+
+    ec = SupersingularEllipticCurve(1, 1, -1)
+    v, e = ec.draw_3_isogeny_graph()
+    render_graph(v, e, "p{}_3_isogenies".format(ec.p))
+    mc = ec.draw_markovian_chain_from_graph(e)
+    render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
+
+    #v, e = ec.draw_5_isogeny_graph()
+    #render_graph(v, e, "p{}_5_isogenies".format(ec.p))
+    #mc = ec.draw_markovian_chain_from_graph(e)
+    #render_graph(v, mc, "p{}_5_isogenies_mc".format(ec.p))
     
 
 def old_test():
