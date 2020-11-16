@@ -2,6 +2,8 @@ from random import randint
 from queue import Queue
 from pprint import pprint
 from graphviz import Digraph
+import numpy as np
+
 K = 10
 
 def miller_rabine_test(n):
@@ -339,8 +341,12 @@ class SupersingularEllipticCurve:
                     edges.append((j0, j1))
                     bfsq.put(isog)
     
-    def draw_markovian_chain_from_graph(self, e):
+    def draw_markovian_chain_from_graph(self, vertexes, e):
         d = {}
+        indexes = {}
+        for i in range(len(vertexes)):
+            indexes[str(vertexes[i])] = i
+
         for ee in e:
             if str(ee[0]) not in d:
                 d[str(ee[0])] = {str(ee[1]): 1}
@@ -351,12 +357,14 @@ class SupersingularEllipticCurve:
                     d[str(ee[0])][str(ee[1])] += 1
 
         eee = []
+        P = np.zeros((len(vertexes), len(vertexes)))
         for k in d:
             for v in d[k]:
                 d[k][v] = 1.0 * d[k][v] / 4
+                P[indexes[k]][indexes[v]] = d[k][v]
                 eee.append((k, v, "{:.2f}".format(d[k][v])))
-
-        return eee
+        
+        return eee, P
 
 
 class EcPoint:
@@ -433,18 +441,36 @@ def render_graph(v, e, name="g1"):
 
     dot.render(name, view=False, format='png')
 
+def find_stationary_distribution(P):
+    n = P.shape[0]
+    identity = np.identity(n)
+    d = np.array([1]*n)
+    b = np.zeros(n)
+    b[0] = 1
+    P_t = np.transpose(P)
+    P_t = np.subtract(P_t, identity)
+    P_t[0] = d
+
+    s = np.linalg.solve(P_t, b)
+
+    return s
+
 def test():
     ec = SupersingularEllipticCurve(2, 1, -1)
     v, e = ec.draw_3_isogeny_graph()
     render_graph(v, e, "p{}_3_isogenies".format(ec.p))
-    mc = ec.draw_markovian_chain_from_graph(e)
+    mc, P = ec.draw_markovian_chain_from_graph(v, e)
     render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
+    Ps = find_stationary_distribution(P)
+    print(v, Ps)
 
     ec = SupersingularEllipticCurve(1, 1, -1)
     v, e = ec.draw_3_isogeny_graph()
     render_graph(v, e, "p{}_3_isogenies".format(ec.p))
-    mc = ec.draw_markovian_chain_from_graph(e)
+    mc, P = ec.draw_markovian_chain_from_graph(v, e)
     render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
+    Ps = find_stationary_distribution(P)
+    print(v, Ps)
 
     #v, e = ec.draw_5_isogeny_graph()
     #render_graph(v, e, "p{}_5_isogenies".format(ec.p))
@@ -465,7 +491,7 @@ def old_test():
     ec = SupersingularEllipticCurve(8, 3, -1)
         
     P3 = ec.generate_3_a_torsion_point(1)
-    P5 = ec.generate_5_b_torsion_point(1)
+    P5 = ec.generate_5_a_torsion_point(1)
 
     print(ec.j())
     print(P3.convert_to_affine())
