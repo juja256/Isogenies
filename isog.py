@@ -1,13 +1,14 @@
 from random import randint
 from queue import Queue
 from pprint import pprint
-from graphviz import Digraph
+from collections import Counter
+from graphviz import Digraph, dot
 import numpy as np
+import fractions
 
-K = 10
 
 def miller_rabine_test(n):
-
+    K = 10    
     def extended_euclid(a, b):
         if (b == 0):
             return a, 1, 0
@@ -158,10 +159,9 @@ class SupersingularEllipticCurve:
             self.d = d
 
         self.n = (self.p+1)**2
-
-        if self.mul(self.rand_point(), self.n) != EcPoint(1, 0):
-
-            raise RuntimeError("Invalid Curve d={}".format(self.d))
+        r = self.mul(self.rand_point(), self.n)
+        if r != EcPoint(1, 0):
+            raise RuntimeError("Invalid Curve r={}, {}, d={}".format(r, self.check_on_curve(r), self.d))
     
     def j(self):
         return (16 * (14*self.d + self.d*self.d + 1).pow(3)) / (self.d * (1-self.d).pow(4))
@@ -252,7 +252,8 @@ class SupersingularEllipticCurve:
     
     def compute_5_isogeny(self, P5):
         P5 = P5.convert_to_affine()
-        return (P5.x**8) * (self.d**5)
+        P52 = self.add(P5, P5)
+        return ((P5.x * P52.x)**8) * (self.d**5)
 
     def compute_5_isogeny_curve(self, P5):
         d = self.compute_5_isogeny(P5)
@@ -331,7 +332,6 @@ class SupersingularEllipticCurve:
 
             kernels = [P1, P2, P3, P4, P5, P6]
             for kernel in kernels:
-                print(ec.find_order_dummy(kernel))
                 isog = ec.compute_5_isogeny_curve(kernel)
                 j1 = isog.j()
                 if j1 in vertexes:
@@ -340,14 +340,23 @@ class SupersingularEllipticCurve:
                     vertexes.append(j1)
                     edges.append((j0, j1))
                     bfsq.put(isog)
+        return (vertexes, edges)
     
-    def draw_markovian_chain_from_graph(self, vertexes, e):
+    def draw_isogeny_graph(self, order):
+        if order == 3:
+            return self.draw_3_isogeny_graph()
+        elif order == 5:
+            return self.draw_5_isogeny_graph()
+        else:
+            raise RuntimeError("order not supported")
+        
+    def draw_markovian_chain_from_graph(self, vertexes, edges, isogeny_order):
         d = {}
         indexes = {}
         for i in range(len(vertexes)):
             indexes[str(vertexes[i])] = i
 
-        for ee in e:
+        for ee in edges:
             if str(ee[0]) not in d:
                 d[str(ee[0])] = {str(ee[1]): 1}
             else:
@@ -360,7 +369,7 @@ class SupersingularEllipticCurve:
         P = np.zeros((len(vertexes), len(vertexes)))
         for k in d:
             for v in d[k]:
-                d[k][v] = 1.0 * d[k][v] / 4
+                d[k][v] = 1.0 * d[k][v] / (isogeny_order+1)
                 P[indexes[k]][indexes[v]] = d[k][v]
                 eee.append((k, v, "{:.2f}".format(d[k][v])))
         
@@ -416,9 +425,9 @@ class EcPoint:
 
     def __str__(self):
         if self.is_affine:
-            return "x = {}\ny = {}".format(self.x, self.y)
+            return "x = {}\ny = {}\n".format(self.x, self.y)
         else:
-            return "X = {}\nY = {}\nZ = {}".format(self.x, self.y, self.z)
+            return "X = {}\nY = {}\nZ = {}\n".format(self.x, self.y, self.z)
 
     def __repr__(self):
         return self.__str__()
@@ -428,7 +437,7 @@ class EcPoint:
         b = other.convert_to_affine()
         return a.x == b.x and a.y == b.y
 
-def render_graph(v, e, name="g1"):
+def render_graph(v, e, name="g1", graphical=False):
     dot = Digraph()
     for vv in v:
         dot.node(vv.__str__())
@@ -438,8 +447,9 @@ def render_graph(v, e, name="g1"):
             dot.edge(ee[0].__str__(), ee[1].__str__())
         else:
             dot.edge(ee[0].__str__(), ee[1].__str__(), ee[2].__str__())
-
-    dot.render(name, view=False, format='png')
+    dot.save(name)
+    if graphical:
+        dot.render(name, view=False)
 
 def find_stationary_distribution(P):
     n = P.shape[0]
@@ -455,27 +465,31 @@ def find_stationary_distribution(P):
 
     return s
 
-def test():
-    ec = SupersingularEllipticCurve(2, 1, -1)
-    v, e = ec.draw_3_isogeny_graph()
-    render_graph(v, e, "p{}_3_isogenies".format(ec.p))
-    mc, P = ec.draw_markovian_chain_from_graph(v, e)
-    render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
-    Ps = find_stationary_distribution(P)
-    print(v, Ps)
+def most_frequent(List):
+    occurence_count = Counter(List)
+    return occurence_count.most_common(1)[0][0]
 
-    ec = SupersingularEllipticCurve(1, 1, -1)
-    v, e = ec.draw_3_isogeny_graph()
-    render_graph(v, e, "p{}_3_isogenies".format(ec.p))
-    mc, P = ec.draw_markovian_chain_from_graph(v, e)
-    render_graph(v, mc, "p{}_3_isogenies_mc".format(ec.p))
-    Ps = find_stationary_distribution(P)
-    print(v, Ps)
+def approx(f):
+    a = fractions.Fraction.from_float(f).limit_denominator(100000)
+    return "{}/{}".format(a.numerator, a.denominator)
 
-    #v, e = ec.draw_5_isogeny_graph()
-    #render_graph(v, e, "p{}_5_isogenies".format(ec.p))
-    #mc = ec.draw_markovian_chain_from_graph(e)
-    #render_graph(v, mc, "p{}_5_isogenies_mc".format(ec.p))
+def test_isog(a, b, d, order, visual=False):
+    p = lambda x,y: int(4* (3**x) * (5**y) -1)
+    ec = SupersingularEllipticCurve(a, b, d)
+    v, e = ec.draw_isogeny_graph(order)
+    mc, P = ec.draw_markovian_chain_from_graph(v, e, order)
+    Ps = find_stationary_distribution(P)
+    Ps = [round(i, 8) for i in Ps]
+    mf = most_frequent(Ps)
+    if visual:
+        render_graph(v, e, "p{}_{}_isogenies".format(ec.p, order))
+        render_graph(v, mc, "p{}_{}_isogenies_mc".format(ec.p, order))
+        f = open("p{}_{}_isogenies_mc_stationary".format(ec.p, order), "wb")
+        f.write("{}\n{}".format(v, Ps).encode("utf-8"))
+        f.close()
+    
+    anomalies = [(v[i], approx(Ps[i])) for i in range(len(v)) if abs(Ps[i] - mf) > 0.00000001 ]
+    print("{}-isogeny MC for p=4(3^{})(5^{})-1={}: num_curves = {}, avg_stationary_prob = {}, stationary_anomalies: {}".format(order, a, b, p(a, b), len(v), approx(mf), anomalies))
     
 
 def old_test():
@@ -512,5 +526,12 @@ def old_test():
     print(ec.compute_5_isogeny(P3_d))
 
 if __name__ == "__main__":
-    test()
+    p = lambda x,y: int(4* (3**x) * (5**y) -1)
+    for x in range(1, 5):
+        for y in range(1, 5):
+            if miller_rabine_test(p(x,y)):
+                print("building isogenies graph for", p(x,y))
+                test_isog(x,y,-1,3)
+                test_isog(x,y,-1,5)
+    
     
